@@ -12,7 +12,9 @@
   <description>Apache Hop plugin suite for GDAL/OGR-based vector input.</description>
 
   <modules>
+    <module>hop-ogr-core</module>
     <module>hop-transform-ogr-reader</module>
+    <module>hop-transform-ogr-exporter</module>
     <module>assemblies</module>
   </modules>
 

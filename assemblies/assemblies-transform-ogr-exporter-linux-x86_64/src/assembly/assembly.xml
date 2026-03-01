@@ -1,0 +1,33 @@
+<assembly xmlns="http://maven.apache.org/ASSEMBLY/2.1.1"
+          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+          xsi:schemaLocation="http://maven.apache.org/ASSEMBLY/2.1.1 https://maven.apache.org/xsd/assembly-2.1.1.xsd">
+  <id>transform</id>
+  <formats>
+    <format>zip</format>
+  </formats>
+  <includeBaseDirectory>false</includeBaseDirectory>
+
+  <dependencySets>
+    <dependencySet>
+      <useProjectArtifact>false</useProjectArtifact>
+      <useTransitiveDependencies>false</useTransitiveDependencies>
+      <outputDirectory>plugins/transforms/ogr-exporter</outputDirectory>
+      <scope>runtime</scope>
+      <unpack>false</unpack>
+      <includes>
+        <include>ch.so.agi:hop-transform-ogr-exporter</include>
+      </includes>
+    </dependencySet>
+    <dependencySet>
+      <useProjectArtifact>false</useProjectArtifact>
+      <useTransitiveDependencies>true</useTransitiveDependencies>
+      <outputDirectory>plugins/transforms/ogr-exporter/lib</outputDirectory>
+      <outputFileNameMapping>${artifact.artifactId}${dashClassifier?}.${artifact.extension}</outputFileNameMapping>
+      <scope>runtime</scope>
+      <unpack>false</unpack>
+      <excludes>
+        <exclude>ch.so.agi:hop-transform-ogr-exporter</exclude>
+      </excludes>
+    </dependencySet>
+  </dependencySets>
+</assembly>

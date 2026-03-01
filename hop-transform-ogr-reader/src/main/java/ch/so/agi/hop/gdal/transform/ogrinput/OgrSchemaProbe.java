@@ -4,6 +4,7 @@ import ch.so.agi.gdal.ffm.Ogr;
 import ch.so.agi.gdal.ffm.OgrDataSource;
 import ch.so.agi.gdal.ffm.OgrFieldDefinition;
 import ch.so.agi.gdal.ffm.OgrLayerDefinition;
+import ch.so.agi.hop.gdal.ogr.core.OgrBindingsClassLoaderSupport;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;

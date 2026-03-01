@@ -1,6 +1,6 @@
 # hop-gdal-plugin
 
-Apache Hop plugin project for reading OGR vector data via `gdal-java-bindings`
+Apache Hop plugin project for reading and writing OGR vector data via `gdal-java-bindings`
 and exposing geometry as `hop-geometry-type`.
 
 ## Status
@@ -15,6 +15,8 @@ Phase-0 baseline:
 
 ## Modules
 
+- `hop-ogr-core`
+  - Shared OGR plugin helpers (classloader bridging, option text parsing).
 - `hop-transform-ogr-reader`
   - Hop pipeline transform plugin (`OGR Input`) using GDAL OGR streaming API.
   - Supported options:
@@ -26,8 +28,23 @@ Phase-0 baseline:
     - feature limit
     - additional dataset open options (`key=value`)
     - FID output toggle and output field names
+- `hop-transform-ogr-exporter`
+  - Hop pipeline transform plugin (`OGR Output`) using GDAL OGR write streaming API.
+  - Supported options:
+    - output file + format/driver
+    - layer name
+    - write mode (`FAIL_IF_EXISTS`, `OVERWRITE`, `APPEND`)
+    - geometry input field
+    - selected attributes (CSV/semicolon)
+    - dataset creation options (`key=value`)
+    - layer creation options (`key=value`)
+    - optional forced geometry type (`AUTO`, `POINT`, `LINESTRING`, `POLYGON`, `MULTI*`)
 - `assemblies/assemblies-transform-ogr-reader-<classifier>`
   - Platform-specific install ZIPs with runtime dependencies.
+- `assemblies/assemblies-transform-ogr-exporter-<classifier>`
+  - Platform-specific exporter ZIPs with runtime dependencies.
+- `assemblies/assemblies-vector-suite-<classifier>`
+  - Platform-specific suite ZIP containing both reader and exporter.
   - Classifiers:
     - `linux-x86_64`
     - `linux-aarch64`
@@ -52,24 +69,39 @@ cd /Users/stefan/sources/gdal-java-bindings
 ./gradlew publishToMavenLocal
 ```
 
-Build only transform + one platform ZIP (example `osx-aarch64`):
+Build only exporter transform + one platform ZIP (example `osx-aarch64`):
 
 ```bash
-mvn -pl hop-transform-ogr-reader,assemblies/assemblies-transform-ogr-reader-osx-aarch64 -am -DskipTests package
+mvn -pl hop-transform-ogr-exporter,assemblies/assemblies-transform-ogr-exporter-osx-aarch64 -am -DskipTests package
 ```
 
 ## Install in Hop
 
-Unzip the desired platform ZIP into your Hop home:
+Unzip the desired platform ZIP into your Hop home.
+
+Reader ZIP:
 
 ```bash
 unzip -o assemblies/assemblies-transform-ogr-reader-osx-aarch64/target/hop-transform-ogr-reader-<version>-osx-aarch64.zip -d "$HOP_HOME"
 ```
 
-This creates:
+Exporter ZIP:
+
+```bash
+unzip -o assemblies/assemblies-transform-ogr-exporter-osx-aarch64/target/hop-transform-ogr-exporter-<version>-osx-aarch64.zip -d "$HOP_HOME"
+```
+
+Vector suite ZIP (reader + exporter):
+
+```bash
+unzip -o assemblies/assemblies-vector-suite-osx-aarch64/target/hop-vector-suite-<version>-osx-aarch64.zip -d "$HOP_HOME"
+```
+
+This creates plugin directories:
 
 ```text
 $HOP_HOME/plugins/transforms/ogr-reader
+$HOP_HOME/plugins/transforms/ogr-exporter
 ```
 
 ## Fast Local Sync
@@ -77,7 +109,10 @@ $HOP_HOME/plugins/transforms/ogr-reader
 Use:
 
 ```bash
-./scripts/dev-sync-hop-plugin.sh "$HOP_HOME" osx-aarch64
+./scripts/dev-sync-hop-plugin.sh "$HOP_HOME" osx-aarch64 ogr-reader
+./scripts/dev-sync-hop-plugin.sh "$HOP_HOME" osx-aarch64 ogr-exporter
+./scripts/dev-sync-hop-plugin.sh "$HOP_HOME" osx-aarch64 vector-suite
 ```
 
 If classifier is omitted, the script auto-detects it on common macOS/Linux setups.
+If target is omitted, it defaults to `ogr-reader` (backward compatible).

@@ -1,4 +1,4 @@
-package ch.so.agi.hop.gdal.transform.ogrinput;
+package ch.so.agi.hop.gdal.ogr.core;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertSame;

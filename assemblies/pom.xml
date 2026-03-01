@@ -12,7 +12,7 @@
 
   <artifactId>assemblies</artifactId>
   <packaging>pom</packaging>
-  <name>OGR Reader Plugin Assemblies</name>
+  <name>OGR Vector Plugin Assemblies</name>
 
   <modules>
     <module>assemblies-transform-ogr-reader-linux-x86_64</module>
@@ -20,5 +20,15 @@
     <module>assemblies-transform-ogr-reader-osx-x86_64</module>
     <module>assemblies-transform-ogr-reader-osx-aarch64</module>
     <module>assemblies-transform-ogr-reader-windows-x86_64</module>
+    <module>assemblies-transform-ogr-exporter-linux-x86_64</module>
+    <module>assemblies-transform-ogr-exporter-linux-aarch64</module>
+    <module>assemblies-transform-ogr-exporter-osx-x86_64</module>
+    <module>assemblies-transform-ogr-exporter-osx-aarch64</module>
+    <module>assemblies-transform-ogr-exporter-windows-x86_64</module>
+    <module>assemblies-vector-suite-linux-x86_64</module>
+    <module>assemblies-vector-suite-linux-aarch64</module>
+    <module>assemblies-vector-suite-osx-x86_64</module>
+    <module>assemblies-vector-suite-osx-aarch64</module>
+    <module>assemblies-vector-suite-windows-x86_64</module>
   </modules>
 </project>

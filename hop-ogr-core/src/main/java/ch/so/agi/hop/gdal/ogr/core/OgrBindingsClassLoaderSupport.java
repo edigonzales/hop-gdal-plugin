@@ -1,20 +1,20 @@
-package ch.so.agi.hop.gdal.transform.ogrinput;
+package ch.so.agi.hop.gdal.ogr.core;
 
-final class OgrBindingsClassLoaderSupport {
+public final class OgrBindingsClassLoaderSupport {
 
   private OgrBindingsClassLoaderSupport() {}
 
   @FunctionalInterface
-  interface ThrowingSupplier<T, E extends Throwable> {
+  public interface ThrowingSupplier<T, E extends Throwable> {
     T get() throws E;
   }
 
   @FunctionalInterface
-  interface ThrowingRunnable<E extends Throwable> {
+  public interface ThrowingRunnable<E extends Throwable> {
     void run() throws E;
   }
 
-  static <T, E extends Throwable> T withPluginContextClassLoader(ThrowingSupplier<T, E> supplier)
+  public static <T, E extends Throwable> T withPluginContextClassLoader(ThrowingSupplier<T, E> supplier)
       throws E {
     ClassLoader pluginClassLoader = OgrBindingsClassLoaderSupport.class.getClassLoader();
     Thread currentThread = Thread.currentThread();
@@ -32,7 +32,7 @@ final class OgrBindingsClassLoaderSupport {
     }
   }
 
-  static <E extends Throwable> void withPluginContextClassLoader(ThrowingRunnable<E> runnable)
+  public static <E extends Throwable> void withPluginContextClassLoader(ThrowingRunnable<E> runnable)
       throws E {
     withPluginContextClassLoader(
         () -> {

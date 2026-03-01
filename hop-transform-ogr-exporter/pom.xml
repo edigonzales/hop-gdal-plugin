@@ -10,8 +10,8 @@
     <relativePath>../pom.xml</relativePath>
   </parent>
 
-  <artifactId>hop-transform-ogr-reader</artifactId>
-  <name>Hop Transform OGR Reader</name>
+  <artifactId>hop-transform-ogr-exporter</artifactId>
+  <name>Hop Transform OGR Exporter</name>
 
   <dependencies>
     <dependency>

@@ -7,6 +7,7 @@ import ch.so.agi.gdal.ffm.OgrFieldDefinition;
 import ch.so.agi.gdal.ffm.OgrGeometry;
 import ch.so.agi.gdal.ffm.OgrLayerDefinition;
 import ch.so.agi.gdal.ffm.OgrReaderOptions;
+import ch.so.agi.hop.gdal.ogr.core.OgrBindingsClassLoaderSupport;
 import com.atolcd.hop.core.row.value.ValueMetaGeometry;
 import java.nio.file.Path;
 import java.util.LinkedHashMap;
