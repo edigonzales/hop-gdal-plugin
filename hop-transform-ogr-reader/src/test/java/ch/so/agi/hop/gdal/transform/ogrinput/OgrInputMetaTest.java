@@ -28,7 +28,6 @@ class OgrInputMetaTest {
     assertEquals("", meta.getBbox());
     assertEquals("", meta.getPolygonWkt());
     assertEquals("", meta.getFeatureLimit());
-    assertEquals("", meta.getAllowedDrivers());
     assertEquals("", meta.getOpenOptions());
   }
 

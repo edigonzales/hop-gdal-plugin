@@ -19,12 +19,11 @@ Phase-0 baseline:
   - Hop pipeline transform plugin (`OGR Input`) using GDAL OGR streaming API.
   - Supported options:
     - input file + layer (optional, fallback = first layer)
-    - dialog-assisted layer discovery and field preview from datasource
+    - automatic layer discovery and field preview from datasource
     - selected attributes (CSV/semicolon)
     - attribute filter expression
     - spatial filter by BBOX or polygon WKT
     - feature limit
-    - allowed OGR drivers
     - additional dataset open options (`key=value`)
     - FID output toggle and output field names
 - `assemblies/assemblies-transform-ogr-reader-<classifier>`

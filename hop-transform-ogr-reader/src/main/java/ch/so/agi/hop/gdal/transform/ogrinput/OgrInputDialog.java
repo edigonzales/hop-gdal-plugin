@@ -1,7 +1,6 @@
 package ch.so.agi.hop.gdal.transform.ogrinput;
 
 import ch.so.agi.gdal.ffm.OgrLayerDefinition;
-import ch.so.agi.gdal.ffm.OgrOpenOptions;
 import java.nio.file.Path;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -36,9 +35,7 @@ public class OgrInputDialog extends BaseTransformDialog {
   private TextVar wFileName;
   private Button wbFileName;
   private ComboVar wLayerName;
-  private Button wbLoadLayers;
   private Text wAvailableFieldsPreview;
-  private Button wbRefreshFields;
 
   private Button wIncludeFid;
   private Text wFidFieldName;
@@ -48,8 +45,8 @@ public class OgrInputDialog extends BaseTransformDialog {
   private TextVar wBbox;
   private TextVar wPolygonWkt;
   private TextVar wFeatureLimit;
-  private TextVar wAllowedDrivers;
   private TextVar wOpenOptions;
+  private boolean suppressLayerAutoRefresh;
 
   public OgrInputDialog(
       Shell parent, IVariables variables, OgrInputMeta transformMeta, PipelineMeta pipelineMeta) {
@@ -116,15 +113,12 @@ public class OgrInputDialog extends BaseTransformDialog {
     wFileName = content.getFileName();
     wbFileName = content.getBrowseFileButton();
     wLayerName = content.getLayerName();
-    wbLoadLayers = content.getLoadLayersButton();
     wAvailableFieldsPreview = content.getAvailableFieldsPreview();
-    wbRefreshFields = content.getRefreshFieldsButton();
     wSelectedAttributes = content.getSelectedAttributes();
     wAttributeFilter = content.getAttributeFilter();
     wBbox = content.getBbox();
     wPolygonWkt = content.getPolygonWkt();
     wFeatureLimit = content.getFeatureLimit();
-    wAllowedDrivers = content.getAllowedDrivers();
     wOpenOptions = content.getOpenOptions();
     wIncludeFid = content.getIncludeFid();
     wFidFieldName = content.getFidFieldName();
@@ -133,32 +127,27 @@ public class OgrInputDialog extends BaseTransformDialog {
     wFileName.addModifyListener(
         e -> {
           input.setChanged();
-          resetAvailableFieldsPreview();
+          loadLayersAndPreview(false);
         });
     wbFileName.addListener(SWT.Selection, e -> browseFile(wFileName));
 
     wLayerName.addModifyListener(
         e -> {
           input.setChanged();
-          resetAvailableFieldsPreview();
+          if (!suppressLayerAutoRefresh) {
+            refreshFieldsPreview(false);
+          }
         });
-    wbLoadLayers.addListener(SWT.Selection, e -> loadLayersAndPreview(true));
-    wbRefreshFields.addListener(SWT.Selection, e -> refreshFieldsPreview(true));
 
     wSelectedAttributes.addModifyListener(e -> input.setChanged());
     wAttributeFilter.addModifyListener(e -> input.setChanged());
     wBbox.addModifyListener(e -> input.setChanged());
     wPolygonWkt.addModifyListener(e -> input.setChanged());
     wFeatureLimit.addModifyListener(e -> input.setChanged());
-    wAllowedDrivers.addModifyListener(
-        e -> {
-          input.setChanged();
-          resetAvailableFieldsPreview();
-        });
     wOpenOptions.addModifyListener(
         e -> {
           input.setChanged();
-          resetAvailableFieldsPreview();
+          loadLayersAndPreview(false);
         });
     wIncludeFid.addListener(
         SWT.Selection,
@@ -174,9 +163,8 @@ public class OgrInputDialog extends BaseTransformDialog {
 
     getData();
     if (isGdalBindingsAvailable()) {
-      refreshFieldsPreview(false);
+      loadLayersAndPreview(false);
     } else {
-      disableSchemaButtons();
       showRuntimePrerequisitePreview();
     }
     enableDisableControls();
@@ -223,8 +211,6 @@ public class OgrInputDialog extends BaseTransformDialog {
     wBbox.setText(Utils.isEmpty(input.getBbox()) ? "" : input.getBbox());
     wPolygonWkt.setText(Utils.isEmpty(input.getPolygonWkt()) ? "" : input.getPolygonWkt());
     wFeatureLimit.setText(Utils.isEmpty(input.getFeatureLimit()) ? "" : input.getFeatureLimit());
-    wAllowedDrivers.setText(
-        Utils.isEmpty(input.getAllowedDrivers()) ? "" : input.getAllowedDrivers());
     wOpenOptions.setText(Utils.isEmpty(input.getOpenOptions()) ? "" : input.getOpenOptions());
     resetAvailableFieldsPreview();
     wTransformName.selectAll();
@@ -248,7 +234,6 @@ public class OgrInputDialog extends BaseTransformDialog {
     input.setBbox(wBbox.getText());
     input.setPolygonWkt(wPolygonWkt.getText());
     input.setFeatureLimit(wFeatureLimit.getText());
-    input.setAllowedDrivers(wAllowedDrivers.getText());
     input.setOpenOptions(wOpenOptions.getText());
 
     dispose();
@@ -271,6 +256,7 @@ public class OgrInputDialog extends BaseTransformDialog {
       } else if (isRuntimePrerequisiteError(e)) {
         showRuntimePrerequisitePreview();
       } else {
+        clearLayerCombo();
         resetAvailableFieldsPreview();
       }
     }
@@ -287,7 +273,12 @@ public class OgrInputDialog extends BaseTransformDialog {
 
       OgrLayerDefinition selectedLayer = OgrSchemaProbe.resolveLayer(layers, resolveUiValue(wLayerName.getText()));
       if (!selectedLayer.name().equals(wLayerName.getText())) {
-        wLayerName.setText(selectedLayer.name());
+        suppressLayerAutoRefresh = true;
+        try {
+          wLayerName.setText(selectedLayer.name());
+        } finally {
+          suppressLayerAutoRefresh = false;
+        }
       }
       wAvailableFieldsPreview.setText(OgrSchemaProbe.formatFieldPreview(selectedLayer));
     } catch (Throwable e) {
@@ -315,31 +306,41 @@ public class OgrInputDialog extends BaseTransformDialog {
     Map<String, String> openOptions =
         new LinkedHashMap<>(
             OgrInputOptionsUtil.parseKeyValueOptions(resolveUiValue(wOpenOptions.getText())));
-
-    String allowedDrivers = resolveUiValue(wAllowedDrivers.getText());
-    if (!allowedDrivers.isBlank()) {
-      openOptions.put(OgrOpenOptions.ALLOWED_DRIVERS, allowedDrivers);
-    }
     return openOptions;
   }
 
   private void populateLayerCombo(List<OgrLayerDefinition> layers) {
     String currentLayerText = resolveUiValue(wLayerName.getText());
-    wLayerName.removeAll();
-    for (OgrLayerDefinition layer : layers) {
-      wLayerName.add(layer.name());
-    }
-
-    if (layers.isEmpty()) {
-      wLayerName.setText("");
-      return;
-    }
-
+    suppressLayerAutoRefresh = true;
     try {
-      OgrLayerDefinition selectedLayer = OgrSchemaProbe.resolveLayer(layers, currentLayerText);
-      wLayerName.setText(selectedLayer.name());
-    } catch (IllegalArgumentException ignored) {
-      wLayerName.setText(layers.getFirst().name());
+      wLayerName.removeAll();
+      for (OgrLayerDefinition layer : layers) {
+        wLayerName.add(layer.name());
+      }
+
+      if (layers.isEmpty()) {
+        wLayerName.setText("");
+        return;
+      }
+
+      try {
+        OgrLayerDefinition selectedLayer = OgrSchemaProbe.resolveLayer(layers, currentLayerText);
+        wLayerName.setText(selectedLayer.name());
+      } catch (IllegalArgumentException ignored) {
+        wLayerName.setText(layers.getFirst().name());
+      }
+    } finally {
+      suppressLayerAutoRefresh = false;
+    }
+  }
+
+  private void clearLayerCombo() {
+    suppressLayerAutoRefresh = true;
+    try {
+      wLayerName.removeAll();
+      wLayerName.setText("");
+    } finally {
+      suppressLayerAutoRefresh = false;
     }
   }
 
@@ -359,15 +360,6 @@ public class OgrInputDialog extends BaseTransformDialog {
         wAvailableFieldsPreview.setText(
             BaseMessages.getString(PKG, "OgrInputDialog.AvailableFields.BindingsMissing"));
       }
-    }
-  }
-
-  private void disableSchemaButtons() {
-    if (wbLoadLayers != null && !wbLoadLayers.isDisposed()) {
-      wbLoadLayers.setEnabled(false);
-    }
-    if (wbRefreshFields != null && !wbRefreshFields.isDisposed()) {
-      wbRefreshFields.setEnabled(false);
     }
   }
 

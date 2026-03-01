@@ -6,7 +6,6 @@ import ch.so.agi.gdal.ffm.OgrFeature;
 import ch.so.agi.gdal.ffm.OgrFieldDefinition;
 import ch.so.agi.gdal.ffm.OgrGeometry;
 import ch.so.agi.gdal.ffm.OgrLayerDefinition;
-import ch.so.agi.gdal.ffm.OgrOpenOptions;
 import ch.so.agi.gdal.ffm.OgrReaderOptions;
 import com.atolcd.hop.core.row.value.ValueMetaGeometry;
 import java.nio.file.Path;
@@ -122,14 +121,8 @@ public class OgrInput extends BaseTransform<OgrInputMeta, OgrInputData> {
   }
 
   private Map<String, String> resolveOpenOptions() {
-    Map<String, String> openOptions =
-        new LinkedHashMap<>(OgrInputOptionsUtil.parseKeyValueOptions(normalizeResolved(meta.getOpenOptions())));
-
-    String allowedDrivers = normalizeResolved(meta.getAllowedDrivers());
-    if (!allowedDrivers.isBlank()) {
-      openOptions.put(OgrOpenOptions.ALLOWED_DRIVERS, allowedDrivers);
-    }
-    return openOptions;
+    return new LinkedHashMap<>(
+        OgrInputOptionsUtil.parseKeyValueOptions(normalizeResolved(meta.getOpenOptions())));
   }
 
   private Map<String, String> resolveReaderOptions(String resolvedSelectedAttributes) {

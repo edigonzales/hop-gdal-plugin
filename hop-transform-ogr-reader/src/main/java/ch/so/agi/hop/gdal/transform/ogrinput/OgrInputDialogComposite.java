@@ -10,8 +10,6 @@ import org.eclipse.swt.SWT;
 import org.eclipse.swt.layout.FormAttachment;
 import org.eclipse.swt.layout.FormData;
 import org.eclipse.swt.layout.FormLayout;
-import org.eclipse.swt.layout.GridData;
-import org.eclipse.swt.layout.GridLayout;
 import org.eclipse.swt.widgets.Button;
 import org.eclipse.swt.widgets.Composite;
 import org.eclipse.swt.widgets.Control;
@@ -29,15 +27,12 @@ public class OgrInputDialogComposite extends Composite {
   private TextVar fileName;
   private Button browseFileButton;
   private ComboVar layerName;
-  private Button loadLayersButton;
   private Text availableFieldsPreview;
-  private Button refreshFieldsButton;
   private TextVar selectedAttributes;
   private TextVar attributeFilter;
   private TextVar bbox;
   private TextVar polygonWkt;
   private TextVar featureLimit;
-  private TextVar allowedDrivers;
   private TextVar openOptions;
   private Button includeFid;
   private Text fidFieldName;
@@ -63,182 +58,188 @@ public class OgrInputDialogComposite extends Composite {
     setLayout(layout);
     PropsUi.setLook(this);
 
-    Control lastControl = null;
+    Composite lastRow = null;
 
-    Composite fileRow =
-        createLabeledRow(
-            BaseMessages.getString(PKG, "OgrInputDialog.FileName.Label"), lastControl);
+    Composite fileRow = createRow(lastRow);
     fileName = new TextVar(variables, fileRow, SWT.SINGLE | SWT.LEFT | SWT.BORDER);
     browseFileButton = new Button(fileRow, SWT.PUSH | SWT.CENTER);
-    configureSingleLineRow(
+    buildRowControlWithButton(
         fileRow,
+        BaseMessages.getString(PKG, "OgrInputDialog.FileName.Label"),
         fileName,
         browseFileButton,
         BaseMessages.getString(PKG, "System.Button.Browse"));
-    lastControl = fileRow;
+    lastRow = fileRow;
 
-    Composite layerRow =
-        createLabeledRow(
-            BaseMessages.getString(PKG, "OgrInputDialog.LayerName.Label"), lastControl);
+    Composite layerRow = createRow(lastRow);
     layerName = new ComboVar(variables, layerRow, SWT.SINGLE | SWT.LEFT | SWT.BORDER);
-    loadLayersButton = new Button(layerRow, SWT.PUSH | SWT.CENTER);
-    configureSingleLineRow(
-        layerRow,
-        layerName,
-        loadLayersButton,
-        BaseMessages.getString(PKG, "OgrInputDialog.LoadLayers.Button"));
-    lastControl = layerRow;
+    buildRowControl(layerRow, BaseMessages.getString(PKG, "OgrInputDialog.LayerName.Label"), layerName);
+    lastRow = layerRow;
 
-    Composite fieldsRow =
-        createLabeledRow(
-            BaseMessages.getString(PKG, "OgrInputDialog.AvailableFields.Label"), lastControl);
+    Composite fieldsRow = createRow(lastRow);
     availableFieldsPreview =
         new Text(fieldsRow, SWT.MULTI | SWT.BORDER | SWT.V_SCROLL | SWT.H_SCROLL);
     availableFieldsPreview.setEditable(false);
-    refreshFieldsButton = new Button(fieldsRow, SWT.PUSH | SWT.CENTER);
-    configureMultiLineRow(
+    buildRowMultiline(
         fieldsRow,
+        BaseMessages.getString(PKG, "OgrInputDialog.AvailableFields.Label"),
         availableFieldsPreview,
-        140,
-        refreshFieldsButton,
-        BaseMessages.getString(PKG, "OgrInputDialog.RefreshFields.Button"));
-    lastControl = fieldsRow;
+        140);
+    lastRow = fieldsRow;
 
-    selectedAttributes = new TextVar(variables, this, SWT.SINGLE | SWT.LEFT | SWT.BORDER);
-    placeControl(
+    Composite selectedAttributesRow = createRow(lastRow);
+    selectedAttributes = new TextVar(variables, selectedAttributesRow, SWT.SINGLE | SWT.LEFT | SWT.BORDER);
+    buildRowControl(
+        selectedAttributesRow,
         BaseMessages.getString(PKG, "OgrInputDialog.SelectedAttributes.Label"),
-        selectedAttributes,
-        lastControl);
-    lastControl = selectedAttributes;
+        selectedAttributes);
+    lastRow = selectedAttributesRow;
 
-    attributeFilter = new TextVar(variables, this, SWT.SINGLE | SWT.LEFT | SWT.BORDER);
-    placeControl(
+    Composite attributeFilterRow = createRow(lastRow);
+    attributeFilter = new TextVar(variables, attributeFilterRow, SWT.SINGLE | SWT.LEFT | SWT.BORDER);
+    buildRowControl(
+        attributeFilterRow,
         BaseMessages.getString(PKG, "OgrInputDialog.AttributeFilter.Label"),
-        attributeFilter,
-        lastControl);
-    lastControl = attributeFilter;
+        attributeFilter);
+    lastRow = attributeFilterRow;
 
-    bbox = new TextVar(variables, this, SWT.SINGLE | SWT.LEFT | SWT.BORDER);
-    placeControl(BaseMessages.getString(PKG, "OgrInputDialog.Bbox.Label"), bbox, lastControl);
-    lastControl = bbox;
+    Composite bboxRow = createRow(lastRow);
+    bbox = new TextVar(variables, bboxRow, SWT.SINGLE | SWT.LEFT | SWT.BORDER);
+    buildRowControl(bboxRow, BaseMessages.getString(PKG, "OgrInputDialog.Bbox.Label"), bbox);
+    lastRow = bboxRow;
 
-    polygonWkt = new TextVar(variables, this, SWT.SINGLE | SWT.LEFT | SWT.BORDER);
-    placeControl(
-        BaseMessages.getString(PKG, "OgrInputDialog.PolygonWkt.Label"), polygonWkt, lastControl);
-    lastControl = polygonWkt;
+    Composite polygonWktRow = createRow(lastRow);
+    polygonWkt = new TextVar(variables, polygonWktRow, SWT.SINGLE | SWT.LEFT | SWT.BORDER);
+    buildRowControl(
+        polygonWktRow,
+        BaseMessages.getString(PKG, "OgrInputDialog.PolygonWkt.Label"),
+        polygonWkt);
+    lastRow = polygonWktRow;
 
-    featureLimit = new TextVar(variables, this, SWT.SINGLE | SWT.LEFT | SWT.BORDER);
-    placeControl(
-        BaseMessages.getString(PKG, "OgrInputDialog.FeatureLimit.Label"), featureLimit, lastControl);
-    lastControl = featureLimit;
+    Composite featureLimitRow = createRow(lastRow);
+    featureLimit = new TextVar(variables, featureLimitRow, SWT.SINGLE | SWT.LEFT | SWT.BORDER);
+    buildRowControl(
+        featureLimitRow,
+        BaseMessages.getString(PKG, "OgrInputDialog.FeatureLimit.Label"),
+        featureLimit);
+    lastRow = featureLimitRow;
 
-    allowedDrivers = new TextVar(variables, this, SWT.SINGLE | SWT.LEFT | SWT.BORDER);
-    placeControl(
-        BaseMessages.getString(PKG, "OgrInputDialog.AllowedDrivers.Label"),
-        allowedDrivers,
-        lastControl);
-    lastControl = allowedDrivers;
-
-    openOptions = new TextVar(variables, this, SWT.SINGLE | SWT.LEFT | SWT.BORDER);
-    placeControl(
+    Composite openOptionsRow = createRow(lastRow);
+    openOptions = new TextVar(variables, openOptionsRow, SWT.SINGLE | SWT.LEFT | SWT.BORDER);
+    buildRowControl(
+        openOptionsRow,
         BaseMessages.getString(PKG, "OgrInputDialog.OpenOptions.Label"),
-        openOptions,
-        lastControl);
-    lastControl = openOptions;
+        openOptions);
+    lastRow = openOptionsRow;
 
-    includeFid = new Button(this, SWT.CHECK);
-    placeControl(
-        BaseMessages.getString(PKG, "OgrInputDialog.IncludeFid.Label"), includeFid, lastControl);
-    lastControl = includeFid;
+    Composite includeFidRow = createRow(lastRow);
+    includeFid = new Button(includeFidRow, SWT.CHECK);
+    buildRowControl(
+        includeFidRow, BaseMessages.getString(PKG, "OgrInputDialog.IncludeFid.Label"), includeFid);
+    lastRow = includeFidRow;
 
-    fidFieldName = new Text(this, SWT.SINGLE | SWT.LEFT | SWT.BORDER);
-    placeControl(
-        BaseMessages.getString(PKG, "OgrInputDialog.FidFieldName.Label"), fidFieldName, lastControl);
-    lastControl = fidFieldName;
+    Composite fidFieldNameRow = createRow(lastRow);
+    fidFieldName = new Text(fidFieldNameRow, SWT.SINGLE | SWT.LEFT | SWT.BORDER);
+    buildRowControl(
+        fidFieldNameRow,
+        BaseMessages.getString(PKG, "OgrInputDialog.FidFieldName.Label"),
+        fidFieldName);
+    lastRow = fidFieldNameRow;
 
-    geometryFieldName = new Text(this, SWT.SINGLE | SWT.LEFT | SWT.BORDER);
-    placeControl(
+    Composite geometryFieldNameRow = createRow(lastRow);
+    geometryFieldName = new Text(geometryFieldNameRow, SWT.SINGLE | SWT.LEFT | SWT.BORDER);
+    buildRowControl(
+        geometryFieldNameRow,
         BaseMessages.getString(PKG, "OgrInputDialog.GeometryFieldName.Label"),
-        geometryFieldName,
-        lastControl);
+        geometryFieldName);
   }
 
-  private Composite createLabeledRow(String labelText, Control under) {
-    Label label = new Label(this, SWT.RIGHT);
-    label.setText(labelText);
-    PropsUi.setLook(label);
-
-    FormData fdLabel = new FormData();
-    fdLabel.left = new FormAttachment(0, 0);
-    fdLabel.right = new FormAttachment(middlePct, -margin);
-    fdLabel.top = under == null ? new FormAttachment(0, 0) : new FormAttachment(under, margin);
-    label.setLayoutData(fdLabel);
-
+  private Composite createRow(Composite underRow) {
     Composite row = new Composite(this, SWT.NONE);
     PropsUi.setLook(row);
+    FormLayout rowLayout = new FormLayout();
+    rowLayout.marginWidth = 0;
+    rowLayout.marginHeight = 0;
+    row.setLayout(rowLayout);
 
     FormData fdRow = new FormData();
-    fdRow.left = new FormAttachment(middlePct, 0);
+    fdRow.left = new FormAttachment(0, 0);
     fdRow.right = new FormAttachment(100, 0);
-    fdRow.top = under == null ? new FormAttachment(0, 0) : new FormAttachment(under, margin);
+    fdRow.top = underRow == null ? new FormAttachment(0, 0) : new FormAttachment(underRow, margin);
     row.setLayoutData(fdRow);
     return row;
   }
 
-  private void configureSingleLineRow(
-      Composite row, Control control, Button actionButton, String buttonLabel) {
-    GridLayout rowLayout = new GridLayout(2, false);
-    rowLayout.marginWidth = 0;
-    rowLayout.marginHeight = 0;
-    rowLayout.horizontalSpacing = margin;
-    row.setLayout(rowLayout);
-
-    PropsUi.setLook(control);
-    GridData gdControl = new GridData(SWT.FILL, SWT.CENTER, true, false);
-    control.setLayoutData(gdControl);
+  private void buildRowControlWithButton(
+      Composite row,
+      String labelText,
+      Control control,
+      Button actionButton,
+      String buttonLabel) {
+    Label label = createRowLabel(row, labelText);
 
     PropsUi.setLook(actionButton);
     actionButton.setText(buttonLabel);
-    GridData gdButton = new GridData(SWT.RIGHT, SWT.CENTER, false, false);
-    actionButton.setLayoutData(gdButton);
-  }
-
-  private void configureMultiLineRow(
-      Composite row, Control control, int height, Button actionButton, String buttonLabel) {
-    GridLayout rowLayout = new GridLayout(2, false);
-    rowLayout.marginWidth = 0;
-    rowLayout.marginHeight = 0;
-    rowLayout.horizontalSpacing = margin;
-    row.setLayout(rowLayout);
+    FormData fdAction = new FormData();
+    fdAction.right = new FormAttachment(100, 0);
+    fdAction.top = new FormAttachment(0, 0);
+    actionButton.setLayoutData(fdAction);
 
     PropsUi.setLook(control);
-    GridData gdControl = new GridData(SWT.FILL, SWT.FILL, true, true);
-    gdControl.heightHint = height;
-    control.setLayoutData(gdControl);
-
-    PropsUi.setLook(actionButton);
-    actionButton.setText(buttonLabel);
-    GridData gdButton = new GridData(SWT.RIGHT, SWT.BEGINNING, false, false);
-    actionButton.setLayoutData(gdButton);
-  }
-
-  private void placeControl(String labelText, Control control, Control under) {
-    Label label = new Label(this, SWT.RIGHT);
-    label.setText(labelText);
-    PropsUi.setLook(label);
+    FormData fdControl = new FormData();
+    fdControl.left = new FormAttachment(middlePct, 0);
+    fdControl.right = new FormAttachment(actionButton, -margin);
+    fdControl.top = new FormAttachment(0, margin);
+    control.setLayoutData(fdControl);
 
     FormData fdLabel = new FormData();
     fdLabel.left = new FormAttachment(0, 0);
     fdLabel.right = new FormAttachment(middlePct, -margin);
-    fdLabel.top = under == null ? new FormAttachment(0, 0) : new FormAttachment(under, margin);
+    fdLabel.top = new FormAttachment(control, 0, SWT.TOP);
     label.setLayoutData(fdLabel);
+  }
+
+  private void buildRowControl(Composite row, String labelText, Control control) {
+    Label label = createRowLabel(row, labelText);
 
     PropsUi.setLook(control);
     FormData fdControl = new FormData();
     fdControl.left = new FormAttachment(middlePct, 0);
     fdControl.right = new FormAttachment(100, 0);
-    fdControl.top = under == null ? new FormAttachment(0, 0) : new FormAttachment(under, margin);
+    fdControl.top = new FormAttachment(0, 0);
     control.setLayoutData(fdControl);
+
+    FormData fdLabel = new FormData();
+    fdLabel.left = new FormAttachment(0, 0);
+    fdLabel.right = new FormAttachment(middlePct, -margin);
+    fdLabel.top = new FormAttachment(control, 0, SWT.TOP);
+    label.setLayoutData(fdLabel);
+  }
+
+  private void buildRowMultiline(
+      Composite row, String labelText, Control control, int height) {
+    Label label = createRowLabel(row, labelText);
+
+    PropsUi.setLook(control);
+    FormData fdControl = new FormData();
+    fdControl.left = new FormAttachment(middlePct, 0);
+    fdControl.right = new FormAttachment(100, 0);
+    fdControl.top = new FormAttachment(0, 0);
+    fdControl.height = height;
+    control.setLayoutData(fdControl);
+
+    FormData fdLabel = new FormData();
+    fdLabel.left = new FormAttachment(0, 0);
+    fdLabel.right = new FormAttachment(middlePct, -margin);
+    fdLabel.top = new FormAttachment(control, 0, SWT.TOP);
+    label.setLayoutData(fdLabel);
+  }
+
+  private Label createRowLabel(Composite row, String labelText) {
+    Label label = new Label(row, SWT.RIGHT);
+    label.setText(labelText);
+    PropsUi.setLook(label);
+    return label;
   }
 
   TextVar getFileName() {
@@ -253,16 +254,8 @@ public class OgrInputDialogComposite extends Composite {
     return layerName;
   }
 
-  Button getLoadLayersButton() {
-    return loadLayersButton;
-  }
-
   Text getAvailableFieldsPreview() {
     return availableFieldsPreview;
-  }
-
-  Button getRefreshFieldsButton() {
-    return refreshFieldsButton;
   }
 
   TextVar getSelectedAttributes() {
@@ -283,10 +276,6 @@ public class OgrInputDialogComposite extends Composite {
 
   TextVar getFeatureLimit() {
     return featureLimit;
-  }
-
-  TextVar getAllowedDrivers() {
-    return allowedDrivers;
   }
 
   TextVar getOpenOptions() {

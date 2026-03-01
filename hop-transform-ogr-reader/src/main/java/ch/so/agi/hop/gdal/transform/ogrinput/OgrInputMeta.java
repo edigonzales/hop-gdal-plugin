@@ -40,7 +40,6 @@ public class OgrInputMeta extends BaseTransformMeta<OgrInput, OgrInputData> {
   @HopMetadataProperty private String bbox;
   @HopMetadataProperty private String polygonWkt;
   @HopMetadataProperty private String featureLimit;
-  @HopMetadataProperty private String allowedDrivers;
   @HopMetadataProperty private String openOptions;
 
   @Override
@@ -55,7 +54,6 @@ public class OgrInputMeta extends BaseTransformMeta<OgrInput, OgrInputData> {
     bbox = "";
     polygonWkt = "";
     featureLimit = "";
-    allowedDrivers = "";
     openOptions = "";
   }
 
@@ -229,14 +227,6 @@ public class OgrInputMeta extends BaseTransformMeta<OgrInput, OgrInputData> {
 
   public void setFeatureLimit(String featureLimit) {
     this.featureLimit = featureLimit;
-  }
-
-  public String getAllowedDrivers() {
-    return allowedDrivers;
-  }
-
-  public void setAllowedDrivers(String allowedDrivers) {
-    this.allowedDrivers = allowedDrivers;
   }
 
   public String getOpenOptions() {
