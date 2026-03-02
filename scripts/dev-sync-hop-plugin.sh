@@ -59,12 +59,14 @@ case "$TARGET" in
     ZIP_PATH="${MODULE}/target/hop-transform-ogr-reader-${VERSION}-${CLASSIFIER}.zip"
     BUILD_MODULES="hop-transform-ogr-reader,${MODULE}"
     CLEAN_DIRS=("$HOP_HOME/plugins/transforms/ogr-reader")
+    INSTALLED_PATHS=("$HOP_HOME/plugins/transforms/ogr-reader")
     ;;
   ogr-exporter)
     MODULE="assemblies/assemblies-transform-ogr-exporter-${CLASSIFIER}"
     ZIP_PATH="${MODULE}/target/hop-transform-ogr-exporter-${VERSION}-${CLASSIFIER}.zip"
     BUILD_MODULES="hop-transform-ogr-exporter,${MODULE}"
     CLEAN_DIRS=("$HOP_HOME/plugins/transforms/ogr-exporter")
+    INSTALLED_PATHS=("$HOP_HOME/plugins/transforms/ogr-exporter")
     ;;
   vector-suite)
     MODULE="assemblies/assemblies-vector-suite-${CLASSIFIER}"
@@ -73,7 +75,9 @@ case "$TARGET" in
     CLEAN_DIRS=(
       "$HOP_HOME/plugins/transforms/ogr-reader"
       "$HOP_HOME/plugins/transforms/ogr-exporter"
+      "$HOP_HOME/plugins/transforms/ogr-vector"
     )
+    INSTALLED_PATHS=("$HOP_HOME/plugins/transforms/ogr-vector")
     ;;
   *)
     echo "Unsupported target: $TARGET"
@@ -90,3 +94,4 @@ done
 unzip -q -o "$ZIP_PATH" -d "$HOP_HOME"
 
 echo "Installed ${TARGET} (${CLASSIFIER}) into $HOP_HOME"
+echo "Plugin path(s): ${INSTALLED_PATHS[*]}"

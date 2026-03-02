@@ -11,39 +11,18 @@
     <dependencySet>
       <useProjectArtifact>false</useProjectArtifact>
       <useTransitiveDependencies>false</useTransitiveDependencies>
-      <outputDirectory>plugins/transforms/ogr-reader</outputDirectory>
+      <outputDirectory>plugins/transforms/ogr-vector</outputDirectory>
       <scope>runtime</scope>
       <unpack>false</unpack>
       <includes>
         <include>ch.so.agi:hop-transform-ogr-reader</include>
-      </includes>
-    </dependencySet>
-    <dependencySet>
-      <useProjectArtifact>false</useProjectArtifact>
-      <useTransitiveDependencies>false</useTransitiveDependencies>
-      <outputDirectory>plugins/transforms/ogr-exporter</outputDirectory>
-      <scope>runtime</scope>
-      <unpack>false</unpack>
-      <includes>
         <include>ch.so.agi:hop-transform-ogr-exporter</include>
       </includes>
     </dependencySet>
     <dependencySet>
       <useProjectArtifact>false</useProjectArtifact>
       <useTransitiveDependencies>true</useTransitiveDependencies>
-      <outputDirectory>plugins/transforms/ogr-reader/lib</outputDirectory>
-      <outputFileNameMapping>${artifact.artifactId}${dashClassifier?}.${artifact.extension}</outputFileNameMapping>
-      <scope>runtime</scope>
-      <unpack>false</unpack>
-      <excludes>
-        <exclude>ch.so.agi:hop-transform-ogr-reader</exclude>
-        <exclude>ch.so.agi:hop-transform-ogr-exporter</exclude>
-      </excludes>
-    </dependencySet>
-    <dependencySet>
-      <useProjectArtifact>false</useProjectArtifact>
-      <useTransitiveDependencies>true</useTransitiveDependencies>
-      <outputDirectory>plugins/transforms/ogr-exporter/lib</outputDirectory>
+      <outputDirectory>plugins/transforms/ogr-vector/lib</outputDirectory>
       <outputFileNameMapping>${artifact.artifactId}${dashClassifier?}.${artifact.extension}</outputFileNameMapping>
       <scope>runtime</scope>
       <unpack>false</unpack>

@@ -45,6 +45,7 @@ Phase-0 baseline:
   - Platform-specific exporter ZIPs with runtime dependencies.
 - `assemblies/assemblies-vector-suite-<classifier>`
   - Platform-specific suite ZIP containing both reader and exporter.
+  - Installs a shared plugin folder (`ogr-vector`) with both transform JARs and one shared runtime `lib/`.
   - Classifiers:
     - `linux-x86_64`
     - `linux-aarch64`
@@ -97,12 +98,23 @@ Vector suite ZIP (reader + exporter):
 unzip -o assemblies/assemblies-vector-suite-osx-aarch64/target/hop-vector-suite-<version>-osx-aarch64.zip -d "$HOP_HOME"
 ```
 
-This creates plugin directories:
+Single-plugin ZIPs create:
 
 ```text
 $HOP_HOME/plugins/transforms/ogr-reader
 $HOP_HOME/plugins/transforms/ogr-exporter
 ```
+
+Vector-suite ZIP creates:
+
+```text
+$HOP_HOME/plugins/transforms/ogr-vector
+```
+
+Migration note:
+- If you switch from separate reader/exporter installs to vector-suite, remove old folders first to avoid mixed classloaders:
+  - `$HOP_HOME/plugins/transforms/ogr-reader`
+  - `$HOP_HOME/plugins/transforms/ogr-exporter`
 
 ## Fast Local Sync
 
@@ -116,3 +128,4 @@ Use:
 
 If classifier is omitted, the script auto-detects it on common macOS/Linux setups.
 If target is omitted, it defaults to `ogr-reader` (backward compatible).
+`vector-suite` sync automatically cleans `ogr-reader`, `ogr-exporter`, and `ogr-vector` before installing.
