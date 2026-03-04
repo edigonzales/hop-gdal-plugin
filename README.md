@@ -59,7 +59,8 @@ Build all modules:
 mvn clean verify
 ```
 
-Use Java 23+ (verify with `javac -version`; must be `23` or higher).
+Use Java 23+ for build (verify with `javac -version`; must be `23` or higher).
+For runtime in Apache Hop, start Hop with Java 25.
 
 If local snapshots are stale, republish bindings from local sources:
 
@@ -77,6 +78,14 @@ mvn -pl hop-transform-ogr-exporter,assemblies/assemblies-transform-ogr-exporter-
 ## Install in Hop
 
 Unzip the desired platform ZIP into your Hop home.
+
+Start Apache Hop with Java 25:
+
+```bash
+HOP_JAVA_HOME=/Users/stefan/.sdkman/candidates/java/25.0.1-tem \
+HOP_OPTIONS="--enable-native-access=ALL-UNNAMED -Xmx2048m" \
+./hop-gui.sh
+```
 
 Reader ZIP:
 
