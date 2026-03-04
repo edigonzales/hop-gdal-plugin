@@ -85,7 +85,7 @@ case "$TARGET" in
     ;;
 esac
 
-mvn -pl "$BUILD_MODULES" -am -DskipTests package
+mvn -pl "$BUILD_MODULES" -am -DskipTests package -U
 
 mkdir -p "$HOP_HOME"
 for dir in "${CLEAN_DIRS[@]}"; do

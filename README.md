@@ -5,14 +5,6 @@ and exposing geometry as `hop-geometry-type`.
 
 ## Status
 
-Current milestone:
-- Phase 0 completed: technical baseline decisions documented.
-- Phase 2 completed (scaffold): Maven multi-module structure, transform skeleton, packaging ZIPs and unit tests are in place.
-- Phase 3 started: OGR streaming reader implementation with layer/attribute/filter options.
-
-Phase-0 baseline:
-- `docs/phase-0-technical-baseline.md`
-
 ## Modules
 
 - `hop-ogr-core`
@@ -28,6 +20,12 @@ Phase-0 baseline:
     - feature limit
     - additional dataset open options (`key=value`)
     - FID output toggle and output field names
+  - Examples (copy/paste):
+    - Attribute filter expression: `status = 'ACTIVE' AND area_m2 >= 1000`
+    - Spatial filter (BBOX): `2600000,1220000,2610000,1230000`
+    - Spatial filter (polygon WKT): `POLYGON((2600000 1220000,2610000 1220000,2610000 1230000,2600000 1230000,2600000 1220000))`
+    - Note: configure only one spatial filter at a time (`BBOX` or `polygon WKT`).
+    - Feature limit: `5000` (positive integer, `> 0`)
 - `hop-transform-ogr-exporter`
   - Hop pipeline transform plugin (`OGR Output`) using GDAL OGR write streaming API.
   - Supported options:
