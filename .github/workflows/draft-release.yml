@@ -4,9 +4,6 @@ on:
   push:
     branches:
       - "main"
-    tags:
-      - "v*"
-  workflow_dispatch:
 
 permissions:
   contents: write
@@ -25,7 +22,7 @@ jobs:
           - os: ubuntu-latest
             classifier: linux-aarch64
             modules: assemblies/assemblies-transform-ogr-reader-linux-aarch64,assemblies/assemblies-transform-ogr-exporter-linux-aarch64,assemblies/assemblies-vector-suite-linux-aarch64
-          - os: macos-13
+          - os: macos-15-intel
             classifier: osx-x86_64
             modules: assemblies/assemblies-transform-ogr-reader-osx-x86_64,assemblies/assemblies-transform-ogr-exporter-osx-x86_64,assemblies/assemblies-vector-suite-osx-x86_64
           - os: macos-15
@@ -110,27 +107,21 @@ jobs:
         id: meta
         shell: bash
         run: |
-          if [[ "${GITHUB_REF}" == refs/tags/* ]]; then
-            tag="${GITHUB_REF_NAME}"
-            name="${GITHUB_REF_NAME}"
-            prerelease="false"
-          else
-            first_zip="$(ls dist/*.zip 2>/dev/null | head -n1 || true)"
-            version="snapshot"
-            if [[ -n "$first_zip" ]]; then
-              base="$(basename "$first_zip")"
-              parsed="$(echo "$base" | sed -E 's/^hop-(transform-ogr-reader|transform-ogr-exporter|vector-suite)-([0-9A-Za-z.+_-]+)-(linux|osx|windows).*/\2/')"
-              if [[ -n "$parsed" && "$parsed" != "$base" ]]; then
-                version="$parsed"
-              fi
+          first_zip="$(ls dist/*.zip 2>/dev/null | head -n1 || true)"
+          version="snapshot"
+          if [[ -n "$first_zip" ]]; then
+            base="$(basename "$first_zip")"
+            parsed="$(echo "$base" | sed -E 's/^hop-(transform-ogr-reader|transform-ogr-exporter|vector-suite)-([0-9A-Za-z.+_-]+)-(linux|osx|windows).*/\2/')"
+            if [[ -n "$parsed" && "$parsed" != "$base" ]]; then
+              version="$parsed"
             fi
-            safe_version="${version//+/-}"
-            timestamp="$(date -u +%Y%m%d-%H%M)"
-            short_sha="${GITHUB_SHA::7}"
-            tag="auto-v${safe_version}-${timestamp}-${short_sha}"
-            name="Auto Draft ${version} (${timestamp} UTC)"
-            prerelease="true"
           fi
+          safe_version="${version//+/-}"
+          timestamp="$(date -u +%Y%m%d-%H%M)"
+          short_sha="${GITHUB_SHA::7}"
+          tag="auto-v${safe_version}-${timestamp}-${short_sha}"
+          name="Auto Draft ${version} (${timestamp} UTC)"
+          prerelease="true"
 
           echo "tag=$tag" >> "$GITHUB_OUTPUT"
           echo "name=$name" >> "$GITHUB_OUTPUT"
