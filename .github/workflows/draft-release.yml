@@ -1,24 +1,12 @@
 name: Draft Release
 
 on:
-  workflow_dispatch:
-    inputs:
-      tag:
-        description: "Release tag (z. B. v0.1.0)"
-        required: true
-        type: string
-      release_name:
-        description: "Release name (optional, default = tag)"
-        required: false
-        type: string
-      prerelease:
-        description: "Mark as prerelease"
-        required: false
-        type: boolean
-        default: false
   push:
+    branches:
+      - "main"
     tags:
       - "v*"
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -37,10 +25,10 @@ jobs:
           - os: ubuntu-latest
             classifier: linux-aarch64
             modules: assemblies/assemblies-transform-ogr-reader-linux-aarch64,assemblies/assemblies-transform-ogr-exporter-linux-aarch64,assemblies/assemblies-vector-suite-linux-aarch64
-          - os: macos-latest
+          - os: macos-13
             classifier: osx-x86_64
             modules: assemblies/assemblies-transform-ogr-reader-osx-x86_64,assemblies/assemblies-transform-ogr-exporter-osx-x86_64,assemblies/assemblies-vector-suite-osx-x86_64
-          - os: macos-latest
+          - os: macos-15
             classifier: osx-aarch64
             modules: assemblies/assemblies-transform-ogr-reader-osx-aarch64,assemblies/assemblies-transform-ogr-exporter-osx-aarch64,assemblies/assemblies-vector-suite-osx-aarch64
           - os: windows-latest
@@ -57,6 +45,39 @@ jobs:
           distribution: temurin
           java-version: "23"
           cache: maven
+
+      - name: Checkout gdal-java-bindings
+        uses: actions/checkout@v4
+        with:
+          repository: edigonzales/gdal-java-bindings
+          ref: main
+          path: .gdal-java-bindings
+          fetch-depth: 1
+
+      - name: Publish gdal-java-bindings to local Maven (Unix)
+        if: runner.os != 'Windows'
+        shell: bash
+        working-directory: .gdal-java-bindings
+        run: ./gradlew -q publishToMavenLocal -PgdalFfmJavaToolchainVersion=23
+
+      - name: Publish gdal-java-bindings to local Maven (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        working-directory: .gdal-java-bindings
+        run: .\gradlew.bat -q publishToMavenLocal -PgdalFfmJavaToolchainVersion=23
+
+      - name: Verify OGR API classes are available
+        shell: bash
+        run: |
+          CORE_JAR="$HOME/.m2/repository/ch/so/agi/gdal-ffm-core/0.1.0-SNAPSHOT+gdal3.11.1/gdal-ffm-core-0.1.0-SNAPSHOT+gdal3.11.1.jar"
+          if [[ ! -f "$CORE_JAR" ]]; then
+            echo "Expected gdal-ffm-core JAR not found: $CORE_JAR"
+            exit 1
+          fi
+          jar tf "$CORE_JAR" | grep -q 'ch/so/agi/gdal/ffm/Ogr.class' || {
+            echo "gdal-ffm-core does not contain Ogr.class"
+            exit 1
+          }
 
       - name: Build ZIP packages
         shell: bash
@@ -89,18 +110,26 @@ jobs:
         id: meta
         shell: bash
         run: |
-          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
-            tag="${{ github.event.inputs.tag }}"
-            name="${{ github.event.inputs.release_name }}"
-            prerelease="${{ github.event.inputs.prerelease }}"
-          else
-            tag="${{ github.ref_name }}"
-            name="${{ github.ref_name }}"
+          if [[ "${GITHUB_REF}" == refs/tags/* ]]; then
+            tag="${GITHUB_REF_NAME}"
+            name="${GITHUB_REF_NAME}"
             prerelease="false"
-          fi
-
-          if [[ -z "$name" ]]; then
-            name="$tag"
+          else
+            first_zip="$(ls dist/*.zip 2>/dev/null | head -n1 || true)"
+            version="snapshot"
+            if [[ -n "$first_zip" ]]; then
+              base="$(basename "$first_zip")"
+              parsed="$(echo "$base" | sed -E 's/^hop-(transform-ogr-reader|transform-ogr-exporter|vector-suite)-([0-9A-Za-z.+_-]+)-(linux|osx|windows).*/\2/')"
+              if [[ -n "$parsed" && "$parsed" != "$base" ]]; then
+                version="$parsed"
+              fi
+            fi
+            safe_version="${version//+/-}"
+            timestamp="$(date -u +%Y%m%d-%H%M)"
+            short_sha="${GITHUB_SHA::7}"
+            tag="auto-v${safe_version}-${timestamp}-${short_sha}"
+            name="Auto Draft ${version} (${timestamp} UTC)"
+            prerelease="true"
           fi
 
           echo "tag=$tag" >> "$GITHUB_OUTPUT"
