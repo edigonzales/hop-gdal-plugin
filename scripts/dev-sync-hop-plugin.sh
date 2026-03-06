@@ -3,7 +3,7 @@ set -euo pipefail
 
 if [[ $# -lt 1 || $# -gt 3 ]]; then
   echo "Usage: $0 <HOP_HOME> [classifier|target] [target]"
-  echo "Targets: ogr-reader (default), ogr-exporter, vector-suite"
+  echo "Targets: all (default -> vector-suite), ogr-reader, ogr-exporter, vector-suite"
   echo "Classifier examples: osx-aarch64, osx-x86_64, linux-x86_64, linux-aarch64, windows-x86_64"
   exit 1
 fi
@@ -12,11 +12,19 @@ HOP_HOME="$1"
 ARG2="${2:-}"
 ARG3="${3:-}"
 
-TARGET="ogr-reader"
+TARGET="all"
 CLASSIFIER=""
 
 is_target() {
-  [[ "$1" == "ogr-reader" || "$1" == "ogr-exporter" || "$1" == "vector-suite" ]]
+  [[ "$1" == "all" || "$1" == "ogr-reader" || "$1" == "ogr-exporter" || "$1" == "vector-suite" ]]
+}
+
+normalize_target() {
+  if [[ "$1" == "all" ]]; then
+    echo "vector-suite"
+  else
+    echo "$1"
+  fi
 }
 
 if [[ -n "$ARG2" ]]; then
@@ -34,6 +42,8 @@ if [[ -n "$ARG3" ]]; then
   fi
   TARGET="$ARG3"
 fi
+
+TARGET="$(normalize_target "$TARGET")"
 
 if [[ -z "$CLASSIFIER" ]]; then
   OS="$(uname -s | tr '[:upper:]' '[:lower:]')"

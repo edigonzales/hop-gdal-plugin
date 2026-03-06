@@ -134,5 +134,5 @@ Use:
 ```
 
 If classifier is omitted, the script auto-detects it on common macOS/Linux setups.
-If target is omitted, it defaults to `ogr-reader` (backward compatible).
+If target is omitted, it defaults to `all` (alias for `vector-suite`).
 `vector-suite` sync automatically cleans `ogr-reader`, `ogr-exporter`, and `ogr-vector` before installing.
