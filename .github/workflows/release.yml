@@ -234,7 +234,7 @@ jobs:
           short_sha="${GITHUB_SHA::7}"
           tag="auto-v${safe_version}-${timestamp}-${short_sha}"
           name="Auto Release ${version} (${timestamp} UTC)"
-          prerelease="true"
+          prerelease="false"
 
           echo "tag=$tag" >> "$GITHUB_OUTPUT"
           echo "name=$name" >> "$GITHUB_OUTPUT"
