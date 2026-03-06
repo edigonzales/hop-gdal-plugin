@@ -43,42 +43,9 @@ jobs:
           java-version: "23"
           cache: maven
 
-      - name: Checkout gdal-java-bindings
-        uses: actions/checkout@v4
-        with:
-          repository: edigonzales/gdal-java-bindings
-          ref: main
-          path: .gdal-java-bindings
-          fetch-depth: 1
-
-      - name: Publish gdal-java-bindings to local Maven (Unix)
-        if: runner.os != 'Windows'
-        shell: bash
-        working-directory: .gdal-java-bindings
-        run: ./gradlew -q publishToMavenLocal -PgdalFfmJavaToolchainVersion=23
-
-      - name: Publish gdal-java-bindings to local Maven (Windows)
-        if: runner.os == 'Windows'
-        shell: pwsh
-        working-directory: .gdal-java-bindings
-        run: .\gradlew.bat -q publishToMavenLocal -PgdalFfmJavaToolchainVersion=23
-
-      - name: Verify OGR API classes are available
-        shell: bash
-        run: |
-          CORE_JAR="$HOME/.m2/repository/ch/so/agi/gdal-ffm-core/0.1.0-SNAPSHOT+gdal3.11.1/gdal-ffm-core-0.1.0-SNAPSHOT+gdal3.11.1.jar"
-          if [[ ! -f "$CORE_JAR" ]]; then
-            echo "Expected gdal-ffm-core JAR not found: $CORE_JAR"
-            exit 1
-          fi
-          jar tf "$CORE_JAR" | grep -q 'ch/so/agi/gdal/ffm/Ogr.class' || {
-            echo "gdal-ffm-core does not contain Ogr.class"
-            exit 1
-          }
-
       - name: Build ZIP packages
         shell: bash
-        run: mvn -B -ntp -DskipTests -pl "${{ matrix.modules }}" -am package
+        run: mvn -U -B -ntp -DskipTests -pl "${{ matrix.modules }}" -am package
 
       - name: Upload ZIP artifacts
         uses: actions/upload-artifact@v4
