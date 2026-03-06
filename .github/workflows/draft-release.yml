@@ -18,18 +18,23 @@ jobs:
         include:
           - os: ubuntu-latest
             classifier: linux-x86_64
+            native_classifier: natives-linux-x86_64
             modules: assemblies/assemblies-transform-ogr-reader-linux-x86_64,assemblies/assemblies-transform-ogr-exporter-linux-x86_64,assemblies/assemblies-vector-suite-linux-x86_64
           - os: ubuntu-latest
             classifier: linux-aarch64
+            native_classifier: natives-linux-aarch64
             modules: assemblies/assemblies-transform-ogr-reader-linux-aarch64,assemblies/assemblies-transform-ogr-exporter-linux-aarch64,assemblies/assemblies-vector-suite-linux-aarch64
           - os: macos-15-intel
             classifier: osx-x86_64
+            native_classifier: natives-osx-x86_64
             modules: assemblies/assemblies-transform-ogr-reader-osx-x86_64,assemblies/assemblies-transform-ogr-exporter-osx-x86_64,assemblies/assemblies-vector-suite-osx-x86_64
           - os: macos-15
             classifier: osx-aarch64
+            native_classifier: natives-osx-aarch64
             modules: assemblies/assemblies-transform-ogr-reader-osx-aarch64,assemblies/assemblies-transform-ogr-exporter-osx-aarch64,assemblies/assemblies-vector-suite-osx-aarch64
           - os: windows-latest
             classifier: windows-x86_64
+            native_classifier: natives-windows-x86_64
             modules: assemblies/assemblies-transform-ogr-reader-windows-x86_64,assemblies/assemblies-transform-ogr-exporter-windows-x86_64,assemblies/assemblies-vector-suite-windows-x86_64
 
     steps:
@@ -40,12 +45,128 @@ jobs:
         uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: "23" 
-          cache: maven
+          java-version: "23"
+
+      - name: Resolve GDAL FFM version
+        id: gdal_version
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="$(sed -n 's:.*<gdal.ffm.version>\(.*\)</gdal.ffm.version>.*:\1:p' pom.xml | head -n1)"
+          if [[ -z "$version" ]]; then
+            echo "Could not resolve gdal.ffm.version from pom.xml" >&2
+            exit 1
+          fi
+          echo "value=$version" >> "$GITHUB_OUTPUT"
+          echo "Resolved gdal.ffm.version=$version"
+
+      - name: Validate native dependency artifact
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="${{ steps.gdal_version.outputs.value }}"
+          classifier="${{ matrix.native_classifier }}"
+          artifact="ch.so.agi:gdal-ffm-natives:${version}:jar:${classifier}"
+          min_size_bytes=$((100 * 1024 * 1024))
+
+          mvn -U -B -ntp dependency:get -Dtransitive=false -Dartifact="$artifact"
+
+          m2_home="${HOME:-}"
+          if [[ -z "$m2_home" && -n "${USERPROFILE:-}" ]]; then
+            m2_home="$USERPROFILE"
+          fi
+          if [[ -z "$m2_home" ]]; then
+            echo "Could not resolve Maven home directory (HOME/USERPROFILE)." >&2
+            exit 1
+          fi
+
+          jar_path="${m2_home}/.m2/repository/ch/so/agi/gdal-ffm-natives/${version}/gdal-ffm-natives-${version}-${classifier}.jar"
+          if [[ ! -f "$jar_path" ]]; then
+            echo "Expected native jar not found: $jar_path" >&2
+            exit 1
+          fi
+
+          jar_size="$(wc -c < "$jar_path" | tr -d ' ')"
+          if (( jar_size < min_size_bytes )); then
+            echo "Native jar too small (${jar_size} bytes, expected >= ${min_size_bytes}): $jar_path" >&2
+            exit 1
+          fi
+
+          if ! jar tf "$jar_path" | grep -Eq '\.(dylib|so|dll)$'; then
+            echo "Native jar does not contain platform binary files (.dylib/.so/.dll): $jar_path" >&2
+            exit 1
+          fi
+
+          echo "Native gate passed for $classifier ($jar_size bytes)."
 
       - name: Build ZIP packages
         shell: bash
         run: mvn -U -B -ntp -DskipTests -pl "${{ matrix.modules }}" -am package
+
+      - name: Validate packaged ZIPs contain native binaries
+        shell: bash
+        env:
+          MATRIX_CLASSIFIER: ${{ matrix.classifier }}
+          NATIVE_CLASSIFIER: ${{ matrix.native_classifier }}
+          MIN_NATIVE_BYTES: "104857600"
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import glob
+          import io
+          import os
+          import re
+          import sys
+          import zipfile
+
+          matrix_classifier = os.environ["MATRIX_CLASSIFIER"]
+          native_classifier = os.environ["NATIVE_CLASSIFIER"]
+          min_native_bytes = int(os.environ["MIN_NATIVE_BYTES"])
+
+          patterns = [
+            f"assemblies/assemblies-transform-ogr-reader-{matrix_classifier}/target/*.zip",
+            f"assemblies/assemblies-transform-ogr-exporter-{matrix_classifier}/target/*.zip",
+            f"assemblies/assemblies-vector-suite-{matrix_classifier}/target/*.zip",
+          ]
+          zip_paths = sorted({path for pattern in patterns for path in glob.glob(pattern)})
+          if len(zip_paths) != 3:
+            print(f"Expected exactly 3 ZIPs for {matrix_classifier}, found {len(zip_paths)}: {zip_paths}", file=sys.stderr)
+            sys.exit(1)
+
+          jar_name_pattern = re.compile(
+            rf"gdal-ffm-natives-(?:.+-)?{re.escape(native_classifier)}\.jar$"
+          )
+
+          for zip_path in zip_paths:
+            with zipfile.ZipFile(zip_path) as outer_zip:
+              native_entries = [entry for entry in outer_zip.infolist() if jar_name_pattern.search(entry.filename)]
+              if not native_entries:
+                print(f"No gdal-ffm-natives jar for {native_classifier} found in {zip_path}", file=sys.stderr)
+                sys.exit(1)
+
+              native_entry = max(native_entries, key=lambda entry: entry.file_size)
+              native_bytes = outer_zip.read(native_entry.filename)
+              native_size = len(native_bytes)
+              if native_size < min_native_bytes:
+                print(
+                  f"Embedded native jar too small in {zip_path}: {native_entry.filename} ({native_size} bytes, expected >= {min_native_bytes})",
+                  file=sys.stderr,
+                )
+                sys.exit(1)
+
+              with zipfile.ZipFile(io.BytesIO(native_bytes)) as native_jar:
+                names = native_jar.namelist()
+                if not any(name.endswith((".dylib", ".so", ".dll")) for name in names):
+                  print(
+                    f"Embedded native jar in {zip_path} does not contain native binaries: {native_entry.filename}",
+                    file=sys.stderr,
+                  )
+                  sys.exit(1)
+
+              print(f"Validated {zip_path} -> {native_entry.filename} ({native_size} bytes)")
+
+          print("Packaged ZIP native validation passed.")
+          PY
 
       - name: Upload ZIP artifacts
         uses: actions/upload-artifact@v4
