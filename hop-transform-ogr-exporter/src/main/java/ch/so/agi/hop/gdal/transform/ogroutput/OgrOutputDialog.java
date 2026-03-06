@@ -172,6 +172,7 @@ public class OgrOutputDialog extends BaseTransformDialog {
     try {
       List<OgrDriverInfo> drivers =
           OgrBindingsClassLoaderSupport.withPluginContextClassLoader(Ogr::listWritableVectorDrivers);
+      String currentFormat = wFormat.getText();
 
       wFormat.removeAll();
       for (OgrDriverInfo driver : drivers) {
@@ -183,10 +184,9 @@ public class OgrOutputDialog extends BaseTransformDialog {
         return;
       }
 
-      String current = wFormat.getText();
-      if (Utils.isEmpty(current)) {
-        wFormat.setText(drivers.getFirst().shortName());
-      }
+      wFormat.setText(
+          OgrOutputOptionsUtil.resolveFormatSelection(
+              currentFormat, drivers.stream().map(OgrDriverInfo::shortName).toList()));
       wOk.setEnabled(true);
     } catch (Throwable e) {
       disableOkWithBindingsError();

@@ -52,4 +52,26 @@ class OgrOutputOptionsUtilTest {
   void shouldTrimToNull() {
     assertTrue(OgrOutputOptionsUtil.trimToNull("   ") == null);
   }
+
+  @Test
+  void shouldPreserveCurrentFormatSelectionWhenStillAvailable() {
+    assertEquals(
+        "CSV",
+        OgrOutputOptionsUtil.resolveFormatSelection("CSV", List.of("Amigo Cloud", "CSV", "GPKG")));
+  }
+
+  @Test
+  void shouldMatchCurrentFormatSelectionIgnoringCase() {
+    assertEquals(
+        "CSV",
+        OgrOutputOptionsUtil.resolveFormatSelection("csv", List.of("Amigo Cloud", "CSV", "GPKG")));
+  }
+
+  @Test
+  void shouldFallbackFormatSelectionToFirstAvailableValue() {
+    assertEquals(
+        "Amigo Cloud",
+        OgrOutputOptionsUtil.resolveFormatSelection(
+            "GeoJSON", List.of("Amigo Cloud", "CSV", "GPKG")));
+  }
 }

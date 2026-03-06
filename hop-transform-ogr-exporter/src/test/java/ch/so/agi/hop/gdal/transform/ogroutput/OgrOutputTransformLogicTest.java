@@ -1,9 +1,12 @@
 package ch.so.agi.hop.gdal.transform.ogroutput;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.List;
+import java.util.Map;
 import org.apache.hop.core.row.RowMeta;
 import org.apache.hop.core.row.value.ValueMetaBoolean;
 import org.apache.hop.core.row.value.ValueMetaDate;
@@ -84,5 +87,41 @@ class OgrOutputTransformLogicTest {
         7,
         OgrOutput.resolveGeometryTypeCode(
             "AUTO", factory.createGeometryCollection(new org.locationtech.jts.geom.Geometry[0])));
+  }
+
+  @Test
+  void shouldDefaultCsvGeometryOptionToAsWkt() {
+    Map<String, String> options = OgrOutput.resolveEffectiveLayerOptions("CSV", Map.of());
+
+    assertEquals("AS_WKT", options.get("GEOMETRY"));
+    assertTrue(OgrOutput.shouldWriteGeometry("CSV", options));
+  }
+
+  @Test
+  void shouldKeepExplicitCsvGeometryOption() {
+    Map<String, String> options =
+        OgrOutput.resolveEffectiveLayerOptions("CSV", Map.of("GEOMETRY", "AS_WKT"));
+
+    assertEquals("AS_WKT", options.get("GEOMETRY"));
+    assertTrue(OgrOutput.shouldWriteGeometry("CSV", options));
+  }
+
+  @Test
+  void shouldSuppressGeometryWriteWhenCsvGeometryIsNone() {
+    Map<String, String> options =
+        OgrOutput.resolveEffectiveLayerOptions("CSV", Map.of("geometry", "NONE"));
+
+    assertEquals("NONE", options.get("geometry"));
+    assertFalse(OgrOutput.shouldWriteGeometry("CSV", options));
+    assertEquals(0, OgrOutput.resolveEffectiveGeometryTypeCode("CSV", options, 3));
+  }
+
+  @Test
+  void shouldNotInjectCsvGeometryOptionForOtherFormats() {
+    Map<String, String> options = OgrOutput.resolveEffectiveLayerOptions("GPKG", Map.of());
+
+    assertTrue(options.isEmpty());
+    assertTrue(OgrOutput.shouldWriteGeometry("GPKG", options));
+    assertEquals(3, OgrOutput.resolveEffectiveGeometryTypeCode("GPKG", options, 3));
   }
 }

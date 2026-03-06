@@ -130,9 +130,6 @@ public class OgrOutput extends BaseTransform<OgrOutputMeta, OgrOutputData> {
       schema.add(new OgrFieldDefinition(attributeName, mapHopTypeToOgrType(valueMeta)));
     }
 
-    Geometry firstGeometry = toJtsGeometry(firstRow[data.geometryFieldIndex]);
-    int geometryTypeCode = resolveGeometryTypeCode(meta.getForceGeometryType(), firstGeometry);
-
     String resolvedLayerName = normalizeResolved(meta.getLayerName());
     if (resolvedLayerName.isBlank()) {
       resolvedLayerName = Utils.isEmpty(getTransformName()) ? "layer" : getTransformName();
@@ -144,17 +141,25 @@ public class OgrOutput extends BaseTransform<OgrOutputMeta, OgrOutputData> {
         OgrOutputOptionsUtil.parseKeyValueOptions(normalizeResolved(meta.getDatasetCreationOptions()));
     Map<String, String> layerOptions =
         OgrOutputOptionsUtil.parseKeyValueOptions(normalizeResolved(meta.getLayerCreationOptions()));
+    Map<String, String> effectiveLayerOptions = resolveEffectiveLayerOptions(resolvedFormat, layerOptions);
+
+    data.writeGeometry = shouldWriteGeometry(resolvedFormat, effectiveLayerOptions);
+
+    Geometry firstGeometry = data.writeGeometry ? toJtsGeometry(firstRow[data.geometryFieldIndex]) : null;
+    int geometryTypeCode = resolveGeometryTypeCode(meta.getForceGeometryType(), firstGeometry);
+    int effectiveGeometryTypeCode =
+        resolveEffectiveGeometryTypeCode(resolvedFormat, effectiveLayerOptions, geometryTypeCode);
 
     data.dataSource = Ogr.create(Path.of(resolvedFileName), resolvedFormat, writeMode, datasetOptions);
 
     OgrLayerWriteSpec writeSpec =
         new OgrLayerWriteSpec(
             resolvedLayerName,
-            geometryTypeCode,
+            effectiveGeometryTypeCode,
             schema,
             writeMode,
             datasetOptions,
-            layerOptions,
+            effectiveLayerOptions,
             null,
             null);
     data.writer = data.dataSource.openWriter(writeSpec);
@@ -181,7 +186,7 @@ public class OgrOutput extends BaseTransform<OgrOutputMeta, OgrOutputData> {
       attributes.put(attributeName, normalizeAttributeValue(valueMeta, value));
     }
 
-    OgrGeometry geometry = toOgrGeometry(row[data.geometryFieldIndex]);
+    OgrGeometry geometry = data.writeGeometry ? toOgrGeometry(row[data.geometryFieldIndex]) : null;
 
     try {
       data.writer.write(new OgrFeature(-1L, attributes, geometry));
@@ -233,6 +238,20 @@ public class OgrOutput extends BaseTransform<OgrOutputMeta, OgrOutputData> {
     }
 
     return List.copyOf(names);
+  }
+
+  static Map<String, String> resolveEffectiveLayerOptions(
+      String format, Map<String, String> layerOptions) {
+    return OgrOutputOptionsUtil.resolveEffectiveLayerCreationOptions(format, layerOptions);
+  }
+
+  static boolean shouldWriteGeometry(String format, Map<String, String> layerOptions) {
+    return OgrOutputOptionsUtil.shouldWriteGeometry(format, layerOptions);
+  }
+
+  static int resolveEffectiveGeometryTypeCode(
+      String format, Map<String, String> layerOptions, int geometryTypeCode) {
+    return shouldWriteGeometry(format, layerOptions) ? geometryTypeCode : 0;
   }
 
   static OgrFieldType mapHopTypeToOgrType(IValueMeta valueMeta) {

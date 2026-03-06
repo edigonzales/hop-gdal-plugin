@@ -11,6 +11,7 @@ import org.apache.hop.pipeline.transform.ITransformData;
 
 public class OgrOutputData extends BaseTransformData implements ITransformData {
   boolean initialized;
+  boolean writeGeometry = true;
   OgrDataSource dataSource;
   OgrLayerWriter writer;
   IRowMeta inputRowMeta;
