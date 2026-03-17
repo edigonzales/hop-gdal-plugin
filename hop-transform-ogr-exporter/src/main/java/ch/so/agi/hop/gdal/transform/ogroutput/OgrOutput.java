@@ -1,13 +1,17 @@
 package ch.so.agi.hop.gdal.transform.ogroutput;
 
 import ch.so.agi.gdal.ffm.Ogr;
+import ch.so.agi.gdal.ffm.OgrDataSource;
 import ch.so.agi.gdal.ffm.OgrFeature;
 import ch.so.agi.gdal.ffm.OgrFieldDefinition;
 import ch.so.agi.gdal.ffm.OgrFieldType;
 import ch.so.agi.gdal.ffm.OgrGeometry;
 import ch.so.agi.gdal.ffm.OgrLayerWriteSpec;
+import ch.so.agi.gdal.ffm.OgrLayerWriter;
 import ch.so.agi.gdal.ffm.OgrWriteMode;
 import ch.so.agi.hop.gdal.ogr.core.OgrBindingsClassLoaderSupport;
+import java.lang.reflect.Constructor;
+import java.lang.reflect.Method;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -41,6 +45,8 @@ import org.locationtech.jts.io.WKBWriter;
 public class OgrOutput extends BaseTransform<OgrOutputMeta, OgrOutputData> {
 
   private static final Class<?> PKG = OgrOutputMeta.class;
+  private static final String JTS_GEOMETRY_CLASS_NAME = "org.locationtech.jts.geom.Geometry";
+  private static final String JTS_WKB_WRITER_CLASS_NAME = "org.locationtech.jts.io.WKBWriter";
 
   private final WKBWriter wkbWriter = new WKBWriter(2, ByteOrderValues.LITTLE_ENDIAN, false);
   private final WKBReader wkbReader = new WKBReader();
@@ -63,34 +69,54 @@ public class OgrOutput extends BaseTransform<OgrOutputMeta, OgrOutputData> {
   private boolean processRowInternal() throws HopException {
     Object[] row = getRow();
     if (row == null) {
+      incrementLinesOutput(finalizePendingRows());
       closeResources();
       setOutputDone();
       return false;
     }
 
-    if (!data.initialized) {
-      initializeWriter(row);
-    }
-
-    writeRow(row);
-    incrementLinesOutput();
+    prepareWriterDefinition();
+    incrementLinesOutput(handleRow(row));
     return true;
   }
 
-  private void initializeWriter(Object[] firstRow) throws HopTransformException {
+  private int handleRow(Object[] row) throws HopTransformException {
+    Geometry geometry = data.writeGeometry ? toJtsGeometry(row[data.geometryFieldIndex]) : null;
+    if (!data.initialized) {
+      if (shouldDelayWriterInitialization(
+          data.writeGeometry, data.forcedGeometryTypeCode, geometry)) {
+        data.pendingRows.add(copyRow(row));
+        return 0;
+      }
+
+      openWriter(geometry);
+      int flushedRows = flushPendingRows();
+      writeRow(row, geometry);
+      return flushedRows + 1;
+    }
+
+    writeRow(row, geometry);
+    return 1;
+  }
+
+  private void prepareWriterDefinition() throws HopTransformException {
+    if (data.definitionPrepared) {
+      return;
+    }
+
     data.inputRowMeta = getInputRowMeta();
     if (data.inputRowMeta == null) {
       throw new HopTransformException(BaseMessages.getString(PKG, "OgrOutput.Transform.NoInputMetadata"));
     }
 
-    String resolvedFileName = normalizeResolved(meta.getFileName());
-    if (resolvedFileName.isBlank()) {
+    data.resolvedFileName = normalizeResolved(meta.getFileName());
+    if (data.resolvedFileName.isBlank()) {
       throw new HopTransformException(
           BaseMessages.getString(PKG, "OgrOutput.Transform.FileNameEmpty"));
     }
 
-    String resolvedFormat = normalizeResolved(meta.getFormat());
-    if (resolvedFormat.isBlank()) {
+    data.resolvedFormat = normalizeResolved(meta.getFormat());
+    if (data.resolvedFormat.isBlank()) {
       throw new HopTransformException(
           BaseMessages.getString(PKG, "OgrOutput.Transform.FormatEmpty"));
     }
@@ -114,7 +140,7 @@ public class OgrOutput extends BaseTransform<OgrOutputMeta, OgrOutputData> {
     data.attributeNames = new ArrayList<>(attributeNames.size());
     data.attributeIndexes = new ArrayList<>(attributeNames.size());
     data.attributeValueMetas = new ArrayList<>(attributeNames.size());
-    List<OgrFieldDefinition> schema = new ArrayList<>(attributeNames.size());
+    data.schema = new ArrayList<>(attributeNames.size());
 
     for (String attributeName : attributeNames) {
       int fieldIndex = data.inputRowMeta.indexOfValue(attributeName);
@@ -127,7 +153,7 @@ public class OgrOutput extends BaseTransform<OgrOutputMeta, OgrOutputData> {
       data.attributeNames.add(attributeName);
       data.attributeIndexes.add(fieldIndex);
       data.attributeValueMetas.add(valueMeta);
-      schema.add(new OgrFieldDefinition(attributeName, mapHopTypeToOgrType(valueMeta)));
+      data.schema.add(new OgrFieldDefinition(attributeName, mapHopTypeToOgrType(valueMeta)));
     }
 
     String resolvedLayerName = normalizeResolved(meta.getLayerName());
@@ -136,47 +162,25 @@ public class OgrOutput extends BaseTransform<OgrOutputMeta, OgrOutputData> {
     }
     data.layerName = resolvedLayerName;
 
-    OgrWriteMode writeMode = OgrOutputOptionsUtil.parseWriteMode(normalizeResolved(meta.getWriteMode()));
-    Map<String, String> datasetOptions =
+    data.writeMode = OgrOutputOptionsUtil.parseWriteMode(normalizeResolved(meta.getWriteMode()));
+    data.datasetOptions =
         OgrOutputOptionsUtil.parseKeyValueOptions(normalizeResolved(meta.getDatasetCreationOptions()));
     Map<String, String> layerOptions =
         OgrOutputOptionsUtil.parseKeyValueOptions(normalizeResolved(meta.getLayerCreationOptions()));
-    Map<String, String> effectiveLayerOptions = resolveEffectiveLayerOptions(resolvedFormat, layerOptions);
+    data.effectiveLayerOptions = resolveEffectiveLayerOptions(data.resolvedFormat, layerOptions);
 
-    data.writeGeometry = shouldWriteGeometry(resolvedFormat, effectiveLayerOptions);
-
-    Geometry firstGeometry = data.writeGeometry ? toJtsGeometry(firstRow[data.geometryFieldIndex]) : null;
-    int geometryTypeCode = resolveGeometryTypeCode(meta.getForceGeometryType(), firstGeometry);
-    int effectiveGeometryTypeCode =
-        resolveEffectiveGeometryTypeCode(resolvedFormat, effectiveLayerOptions, geometryTypeCode);
-
-    data.dataSource = Ogr.create(Path.of(resolvedFileName), resolvedFormat, writeMode, datasetOptions);
-
-    OgrLayerWriteSpec writeSpec =
-        new OgrLayerWriteSpec(
-            resolvedLayerName,
-            effectiveGeometryTypeCode,
-            schema,
-            writeMode,
-            datasetOptions,
-            effectiveLayerOptions,
-            null,
-            null);
-    data.writer = data.dataSource.openWriter(writeSpec);
-    data.initialized = true;
-
-    if (isBasic()) {
-      logBasic(
-          BaseMessages.getString(
-              PKG,
-              "OgrOutput.Transform.OpenedDataset",
-              resolvedFileName,
-              resolvedLayerName,
-              resolvedFormat));
-    }
+    data.writeGeometry = shouldWriteGeometry(data.resolvedFormat, data.effectiveLayerOptions);
+    data.forcedGeometryTypeCode =
+        OgrOutputOptionsUtil.parseForcedGeometryTypeCode(meta.getForceGeometryType());
+    data.definitionPrepared = true;
   }
 
   private void writeRow(Object[] row) throws HopTransformException {
+    Geometry geometry = data.writeGeometry ? toJtsGeometry(row[data.geometryFieldIndex]) : null;
+    writeRow(row, geometry);
+  }
+
+  private void writeRow(Object[] row, Geometry geometry) throws HopTransformException {
     Map<String, Object> attributes = new LinkedHashMap<>(data.attributeNames.size());
     for (int i = 0; i < data.attributeNames.size(); i++) {
       String attributeName = data.attributeNames.get(i);
@@ -186,10 +190,10 @@ public class OgrOutput extends BaseTransform<OgrOutputMeta, OgrOutputData> {
       attributes.put(attributeName, normalizeAttributeValue(valueMeta, value));
     }
 
-    OgrGeometry geometry = data.writeGeometry ? toOgrGeometry(row[data.geometryFieldIndex]) : null;
+    OgrGeometry ogrGeometry = data.writeGeometry ? toOgrGeometry(geometry) : null;
 
     try {
-      data.writer.write(new OgrFeature(-1L, attributes, geometry));
+      data.writer.write(new OgrFeature(-1L, attributes, ogrGeometry));
     } catch (RuntimeException e) {
       throw new HopTransformException(BaseMessages.getString(PKG, "OgrOutput.Transform.WriteFailed"), e);
     }
@@ -265,11 +269,14 @@ public class OgrOutput extends BaseTransform<OgrOutputMeta, OgrOutputData> {
   }
 
   static int resolveGeometryTypeCode(String forcedGeometryTypeRaw, Geometry geometry) {
-    int forcedCode = OgrOutputOptionsUtil.parseForcedGeometryTypeCode(forcedGeometryTypeRaw);
+    return resolveGeometryTypeCode(
+        OgrOutputOptionsUtil.parseForcedGeometryTypeCode(forcedGeometryTypeRaw), geometry);
+  }
+
+  static int resolveGeometryTypeCode(int forcedCode, Geometry geometry) {
     if (forcedCode >= 0) {
       return forcedCode;
     }
-
     if (geometry == null) {
       return 0;
     }
@@ -297,6 +304,11 @@ public class OgrOutput extends BaseTransform<OgrOutputMeta, OgrOutputData> {
     return 0;
   }
 
+  static boolean shouldDelayWriterInitialization(
+      boolean writeGeometry, int forcedGeometryTypeCode, Geometry geometry) {
+    return writeGeometry && forcedGeometryTypeCode < 0 && geometry == null;
+  }
+
   private Object normalizeAttributeValue(IValueMeta valueMeta, Object value) {
     if (value == null) {
       return null;
@@ -312,20 +324,41 @@ public class OgrOutput extends BaseTransform<OgrOutputMeta, OgrOutputData> {
     };
   }
 
-  private OgrGeometry toOgrGeometry(Object value) throws HopTransformException {
+  Geometry toJtsGeometry(Object value) throws HopTransformException {
     if (value == null) {
       return null;
     }
 
+    if (value instanceof Geometry geometry) {
+      return geometry;
+    }
+
     if (value instanceof OgrGeometry ogrGeometry) {
-      return ogrGeometry;
+      return toJtsGeometry(ogrGeometry);
     }
 
-    if (value instanceof byte[] ewkb) {
-      return OgrGeometry.fromEwkb(ewkb);
+    if (value instanceof byte[] bytes) {
+      return readGeometry(bytes);
     }
 
-    Geometry geometry = toJtsGeometry(value);
+    if (isJtsGeometryObject(value.getClass())) {
+      return toLocalJtsGeometry(value);
+    }
+
+    throw unsupportedGeometryValue(value);
+  }
+
+  private Geometry toJtsGeometry(OgrGeometry ogrGeometry) throws HopTransformException {
+    if (ogrGeometry == null) {
+      return null;
+    }
+
+    Geometry geometry = readGeometry(ogrGeometry.ewkb());
+    ogrGeometry.srid().ifPresent(geometry::setSRID);
+    return geometry;
+  }
+
+  private OgrGeometry toOgrGeometry(Geometry geometry) {
     if (geometry == null) {
       return null;
     }
@@ -336,25 +369,6 @@ public class OgrOutput extends BaseTransform<OgrOutputMeta, OgrOutputData> {
       return OgrGeometry.fromWkb(wkb, srid);
     }
     return OgrGeometry.fromWkb(wkb);
-  }
-
-  private Geometry toJtsGeometry(Object value) throws HopTransformException {
-    if (value == null) {
-      return null;
-    }
-    if (value instanceof Geometry geometry) {
-      return geometry;
-    }
-    if (value instanceof byte[] bytes) {
-      try {
-        return wkbReader.read(bytes);
-      } catch (ParseException e) {
-        throw new HopTransformException(
-            BaseMessages.getString(PKG, "OgrOutput.Transform.GeometryParseFailed"), e);
-      }
-    }
-    throw new HopTransformException(
-        BaseMessages.getString(PKG, "OgrOutput.Transform.UnsupportedGeometryValue", value.getClass().getName()));
   }
 
   @Override
@@ -384,6 +398,165 @@ public class OgrOutput extends BaseTransform<OgrOutputMeta, OgrOutputData> {
         logError(BaseMessages.getString(PKG, "OgrOutput.Transform.CloseDatasourceFailed"), e);
       }
       data.dataSource = null;
+    }
+  }
+
+  private int finalizePendingRows() throws HopTransformException {
+    if (!data.definitionPrepared || data.initialized || data.pendingRows.isEmpty()) {
+      return 0;
+    }
+
+    openWriter(null);
+    return flushPendingRows();
+  }
+
+  private int flushPendingRows() throws HopTransformException {
+    int writtenRows = 0;
+    for (Object[] pendingRow : data.pendingRows) {
+      writeRow(pendingRow);
+      writtenRows++;
+    }
+    data.pendingRows.clear();
+    return writtenRows;
+  }
+
+  private void openWriter(Geometry geometry) throws HopTransformException {
+    int geometryTypeCode = resolveGeometryTypeCode(data.forcedGeometryTypeCode, geometry);
+    int effectiveGeometryTypeCode =
+        resolveEffectiveGeometryTypeCode(
+            data.resolvedFormat, data.effectiveLayerOptions, geometryTypeCode);
+
+    data.dataSource =
+        createDataSource(data.resolvedFileName, data.resolvedFormat, data.writeMode, data.datasetOptions);
+
+    OgrLayerWriteSpec writeSpec =
+        new OgrLayerWriteSpec(
+            data.layerName,
+            effectiveGeometryTypeCode,
+            data.schema,
+            data.writeMode,
+            data.datasetOptions,
+            data.effectiveLayerOptions,
+            null,
+            null);
+    data.writer = openWriter(data.dataSource, writeSpec);
+    data.initialized = true;
+
+    if (isBasic()) {
+      logBasic(
+          BaseMessages.getString(
+              PKG,
+              "OgrOutput.Transform.OpenedDataset",
+              data.resolvedFileName,
+              data.layerName,
+              data.resolvedFormat));
+    }
+  }
+
+  protected OgrDataSource createDataSource(
+      String resolvedFileName,
+      String resolvedFormat,
+      OgrWriteMode writeMode,
+      Map<String, String> datasetOptions) {
+    return Ogr.create(Path.of(resolvedFileName), resolvedFormat, writeMode, datasetOptions);
+  }
+
+  protected OgrLayerWriter openWriter(OgrDataSource dataSource, OgrLayerWriteSpec writeSpec) {
+    return dataSource.openWriter(writeSpec);
+  }
+
+  private Geometry readGeometry(byte[] bytes) throws HopTransformException {
+    try {
+      return wkbReader.read(bytes);
+    } catch (ParseException e) {
+      throw new HopTransformException(
+          BaseMessages.getString(PKG, "OgrOutput.Transform.GeometryParseFailed"), e);
+    }
+  }
+
+  private Geometry toLocalJtsGeometry(Object geometryValue) throws HopTransformException {
+    try {
+      Class<?> geometryClass = findJtsGeometryClass(geometryValue.getClass());
+      if (geometryClass == null) {
+        throw unsupportedGeometryValue(geometryValue);
+      }
+
+      ClassLoader foreignClassLoader = geometryValue.getClass().getClassLoader();
+      Class<?> foreignWkbWriterClass =
+          Class.forName(JTS_WKB_WRITER_CLASS_NAME, true, foreignClassLoader);
+      Constructor<?> constructor = foreignWkbWriterClass.getConstructor();
+      Object foreignWkbWriter = constructor.newInstance();
+      Method writeMethod = foreignWkbWriterClass.getMethod("write", geometryClass);
+      byte[] wkb = (byte[]) writeMethod.invoke(foreignWkbWriter, geometryValue);
+
+      Geometry geometry = readGeometry(wkb);
+      Method getSridMethod = geometryClass.getMethod("getSRID");
+      Object sridValue = getSridMethod.invoke(geometryValue);
+      if (sridValue instanceof Number number && number.intValue() > 0) {
+        geometry.setSRID(number.intValue());
+      }
+      return geometry;
+    } catch (HopTransformException e) {
+      throw e;
+    } catch (ReflectiveOperationException | RuntimeException e) {
+      throw new HopTransformException(
+          BaseMessages.getString(
+              PKG,
+              "OgrOutput.Transform.GeometryReflectionFailed",
+              describeGeometryValue(geometryValue)),
+          e);
+    }
+  }
+
+  private HopTransformException unsupportedGeometryValue(Object value) {
+    return new HopTransformException(
+        BaseMessages.getString(
+            PKG,
+            "OgrOutput.Transform.UnsupportedGeometryValue",
+            describeGeometryValue(value)));
+  }
+
+  static boolean isJtsGeometryObject(Class<?> type) {
+    return findJtsGeometryClass(type) != null;
+  }
+
+  private static Class<?> findJtsGeometryClass(Class<?> type) {
+    Class<?> current = type;
+    while (current != null) {
+      if (JTS_GEOMETRY_CLASS_NAME.equals(current.getName())) {
+        return current;
+      }
+      current = current.getSuperclass();
+    }
+    return null;
+  }
+
+  static String describeGeometryValue(Object value) {
+    if (value == null) {
+      return "null";
+    }
+    return value.getClass().getName()
+        + " (classLoader="
+        + describeClassLoader(value.getClass().getClassLoader())
+        + ")";
+  }
+
+  private static String describeClassLoader(ClassLoader classLoader) {
+    if (classLoader == null) {
+      return "bootstrap";
+    }
+    return classLoader.getClass().getName()
+        + "@"
+        + Integer.toHexString(System.identityHashCode(classLoader));
+  }
+
+  private static Object[] copyRow(Object[] row) {
+    return row == null ? null : row.clone();
+  }
+
+  private void incrementLinesOutput(int count) {
+    for (int i = 0; i < count; i++) {
+      incrementLinesOutput();
     }
   }
 
