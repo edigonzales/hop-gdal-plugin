@@ -11,7 +11,7 @@
     <dependencySet>
       <useProjectArtifact>false</useProjectArtifact>
       <useTransitiveDependencies>false</useTransitiveDependencies>
-      <outputDirectory>plugins/transforms/ogr-vector</outputDirectory>
+      <outputDirectory>plugins/transforms/gdal-suite</outputDirectory>
       <scope>runtime</scope>
       <unpack>false</unpack>
       <includes>
@@ -22,7 +22,7 @@
     <dependencySet>
       <useProjectArtifact>false</useProjectArtifact>
       <useTransitiveDependencies>true</useTransitiveDependencies>
-      <outputDirectory>plugins/transforms/ogr-vector/lib</outputDirectory>
+      <outputDirectory>plugins/transforms/gdal-suite/lib</outputDirectory>
       <outputFileNameMapping>${artifact.artifactId}${dashClassifier?}.${artifact.extension}</outputFileNameMapping>
       <scope>runtime</scope>
       <unpack>false</unpack>

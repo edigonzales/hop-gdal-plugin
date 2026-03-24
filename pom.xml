@@ -9,12 +9,18 @@
   <packaging>pom</packaging>
 
   <name>Apache Hop GDAL Plugin</name>
-  <description>Apache Hop plugin suite for GDAL/OGR-based vector input.</description>
+  <description>Apache Hop plugin suite for GDAL/OGR-based vector and raster transforms.</description>
 
   <modules>
     <module>hop-ogr-core</module>
+    <module>hop-gdal-raster-core</module>
     <module>hop-transform-ogr-reader</module>
     <module>hop-transform-ogr-exporter</module>
+    <module>hop-transform-gdal-raster-info</module>
+    <module>hop-transform-gdal-raster-convert</module>
+    <module>hop-transform-gdal-raster-warp</module>
+    <module>hop-transform-gdal-raster-buildvrt</module>
+    <module>hop-transform-gdal-rasterize-vector</module>
     <module>assemblies</module>
   </modules>
 

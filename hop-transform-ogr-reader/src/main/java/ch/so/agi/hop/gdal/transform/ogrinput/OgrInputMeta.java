@@ -24,6 +24,7 @@ import org.apache.hop.pipeline.transform.TransformMeta;
     image = "ch/so/agi/hop/gdal/transform/ogrinput/icons/ogr-input.svg",
     categoryDescription = "i18n:org.apache.hop.pipeline.transform:BaseTransform.Category.Input",
     documentationUrl = "/pipeline/transforms/ogr-input.html",
+    classLoaderGroup = "hop-gdal-suite",
     keywords = {"i18n::OgrInputMeta.keyword", "ogr", "gdal", "vector"})
 public class OgrInputMeta extends BaseTransformMeta<OgrInput, OgrInputData> {
 

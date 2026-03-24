@@ -1,0 +1,81 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <parent>
+    <groupId>ch.so.agi</groupId>
+    <artifactId>assemblies</artifactId>
+    <version>0.1.0-SNAPSHOT</version>
+    <relativePath>../pom.xml</relativePath>
+  </parent>
+
+  <artifactId>assemblies-raster-suite-windows-x86_64</artifactId>
+  <packaging>pom</packaging>
+  <name>Raster Suite Assembly (windows-x86_64)</name>
+
+  <dependencies>
+    <dependency>
+      <groupId>ch.so.agi</groupId>
+      <artifactId>hop-transform-gdal-raster-info</artifactId>
+      <version>${project.version}</version>
+      <scope>runtime</scope>
+    </dependency>
+    <dependency>
+      <groupId>ch.so.agi</groupId>
+      <artifactId>hop-transform-gdal-raster-convert</artifactId>
+      <version>${project.version}</version>
+      <scope>runtime</scope>
+    </dependency>
+    <dependency>
+      <groupId>ch.so.agi</groupId>
+      <artifactId>hop-transform-gdal-raster-warp</artifactId>
+      <version>${project.version}</version>
+      <scope>runtime</scope>
+    </dependency>
+    <dependency>
+      <groupId>ch.so.agi</groupId>
+      <artifactId>hop-transform-gdal-raster-buildvrt</artifactId>
+      <version>${project.version}</version>
+      <scope>runtime</scope>
+    </dependency>
+    <dependency>
+      <groupId>ch.so.agi</groupId>
+      <artifactId>hop-transform-gdal-rasterize-vector</artifactId>
+      <version>${project.version}</version>
+      <scope>runtime</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>ch.so.agi</groupId>
+      <artifactId>gdal-ffm-natives-swiss</artifactId>
+      <version>${gdal.ffm.version}</version>
+      <classifier>natives-windows-x86_64</classifier>
+      <scope>runtime</scope>
+    </dependency>
+  </dependencies>
+
+  <build>
+    <plugins>
+      <plugin>
+        <artifactId>maven-assembly-plugin</artifactId>
+        <executions>
+          <execution>
+            <id>package-plugin-zip</id>
+            <phase>package</phase>
+            <goals>
+              <goal>single</goal>
+            </goals>
+            <configuration>
+              <descriptors>
+                <descriptor>src/assembly/assembly.xml</descriptor>
+              </descriptors>
+              <appendAssemblyId>false</appendAssemblyId>
+              <finalName>hop-raster-suite-${project.version}-windows-x86_64</finalName>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+    </plugins>
+  </build>
+</project>

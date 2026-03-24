@@ -3,7 +3,7 @@ set -euo pipefail
 
 if [[ $# -lt 1 || $# -gt 3 ]]; then
   echo "Usage: $0 <HOP_HOME> [classifier|target] [target]"
-  echo "Targets: all (default -> vector-suite), ogr-reader, ogr-exporter, vector-suite"
+  echo "Targets: gdal-suite (default), vector-suite, raster-suite"
   echo "Classifier examples: osx-aarch64, osx-x86_64, linux-x86_64, linux-aarch64, windows-x86_64"
   exit 1
 fi
@@ -12,19 +12,34 @@ HOP_HOME="$1"
 ARG2="${2:-}"
 ARG3="${3:-}"
 
-TARGET="all"
+TARGET="gdal-suite"
 CLASSIFIER=""
 
 is_target() {
-  [[ "$1" == "all" || "$1" == "ogr-reader" || "$1" == "ogr-exporter" || "$1" == "vector-suite" ]]
+  [[ "$1" == "vector-suite" || "$1" == "raster-suite" || "$1" == "gdal-suite" ]]
 }
 
-normalize_target() {
-  if [[ "$1" == "all" ]]; then
-    echo "vector-suite"
-  else
-    echo "$1"
-  fi
+resolve_target() {
+  local target="$1"
+
+  case "$target" in
+    vector-suite)
+      BUILD_MODULE="assemblies/assemblies-vector-suite-${CLASSIFIER}"
+      ZIP_PATH="${BUILD_MODULE}/target/hop-vector-suite-${VERSION}-${CLASSIFIER}.zip"
+      ;;
+    raster-suite)
+      BUILD_MODULE="assemblies/assemblies-raster-suite-${CLASSIFIER}"
+      ZIP_PATH="${BUILD_MODULE}/target/hop-raster-suite-${VERSION}-${CLASSIFIER}.zip"
+      ;;
+    gdal-suite)
+      BUILD_MODULE="assemblies/assemblies-gdal-suite-${CLASSIFIER}"
+      ZIP_PATH="${BUILD_MODULE}/target/hop-gdal-suite-${VERSION}-${CLASSIFIER}.zip"
+      ;;
+    *)
+      echo "Unsupported target: $target"
+      exit 1
+      ;;
+  esac
 }
 
 if [[ -n "$ARG2" ]]; then
@@ -43,8 +58,6 @@ if [[ -n "$ARG3" ]]; then
   TARGET="$ARG3"
 fi
 
-TARGET="$(normalize_target "$TARGET")"
-
 if [[ -z "$CLASSIFIER" ]]; then
   OS="$(uname -s | tr '[:upper:]' '[:lower:]')"
   ARCH="$(uname -m)"
@@ -62,46 +75,28 @@ if [[ -z "$CLASSIFIER" ]]; then
 fi
 
 VERSION="$(sed -n 's|.*<version>\(.*\)</version>.*|\1|p' pom.xml | head -n 1)"
+resolve_target "$TARGET"
 
-case "$TARGET" in
-  ogr-reader)
-    MODULE="assemblies/assemblies-transform-ogr-reader-${CLASSIFIER}"
-    ZIP_PATH="${MODULE}/target/hop-transform-ogr-reader-${VERSION}-${CLASSIFIER}.zip"
-    BUILD_MODULES="hop-transform-ogr-reader,${MODULE}"
-    CLEAN_DIRS=("$HOP_HOME/plugins/transforms/ogr-reader")
-    INSTALLED_PATHS=("$HOP_HOME/plugins/transforms/ogr-reader")
-    ;;
-  ogr-exporter)
-    MODULE="assemblies/assemblies-transform-ogr-exporter-${CLASSIFIER}"
-    ZIP_PATH="${MODULE}/target/hop-transform-ogr-exporter-${VERSION}-${CLASSIFIER}.zip"
-    BUILD_MODULES="hop-transform-ogr-exporter,${MODULE}"
-    CLEAN_DIRS=("$HOP_HOME/plugins/transforms/ogr-exporter")
-    INSTALLED_PATHS=("$HOP_HOME/plugins/transforms/ogr-exporter")
-    ;;
-  vector-suite)
-    MODULE="assemblies/assemblies-vector-suite-${CLASSIFIER}"
-    ZIP_PATH="${MODULE}/target/hop-vector-suite-${VERSION}-${CLASSIFIER}.zip"
-    BUILD_MODULES="hop-transform-ogr-reader,hop-transform-ogr-exporter,${MODULE}"
-    CLEAN_DIRS=(
-      "$HOP_HOME/plugins/transforms/ogr-reader"
-      "$HOP_HOME/plugins/transforms/ogr-exporter"
-      "$HOP_HOME/plugins/transforms/ogr-vector"
-    )
-    INSTALLED_PATHS=("$HOP_HOME/plugins/transforms/ogr-vector")
-    ;;
-  *)
-    echo "Unsupported target: $TARGET"
-    exit 1
-    ;;
-esac
+LEGACY_PLUGIN_DIRS=(
+  "$HOP_HOME/plugins/transforms/ogr-reader"
+  "$HOP_HOME/plugins/transforms/ogr-exporter"
+  "$HOP_HOME/plugins/transforms/ogr-vector"
+  "$HOP_HOME/plugins/transforms/gdal-raster-info"
+  "$HOP_HOME/plugins/transforms/gdal-raster-convert"
+  "$HOP_HOME/plugins/transforms/gdal-raster-warp"
+  "$HOP_HOME/plugins/transforms/gdal-raster-buildvrt"
+  "$HOP_HOME/plugins/transforms/gdal-rasterize-vector"
+  "$HOP_HOME/plugins/transforms/gdal-raster"
+  "$HOP_HOME/plugins/transforms/gdal-suite"
+)
 
-mvn -pl "$BUILD_MODULES" -am -DskipTests package -U
+mvn -pl "$BUILD_MODULE" -am -DskipTests package -U
 
 mkdir -p "$HOP_HOME"
-for dir in "${CLEAN_DIRS[@]}"; do
+for dir in "${LEGACY_PLUGIN_DIRS[@]}"; do
   rm -rf "$dir"
 done
+
 unzip -q -o "$ZIP_PATH" -d "$HOP_HOME"
 
 echo "Installed ${TARGET} (${CLASSIFIER}) into $HOP_HOME"
-echo "Plugin path(s): ${INSTALLED_PATHS[*]}"

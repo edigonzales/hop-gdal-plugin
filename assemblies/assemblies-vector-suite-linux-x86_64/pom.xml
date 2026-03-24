@@ -29,7 +29,7 @@
     </dependency>
     <dependency>
       <groupId>ch.so.agi</groupId>
-      <artifactId>gdal-ffm-natives</artifactId>
+      <artifactId>gdal-ffm-natives-swiss</artifactId>
       <version>${gdal.ffm.version}</version>
       <classifier>natives-linux-x86_64</classifier>
       <scope>runtime</scope>

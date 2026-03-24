@@ -21,6 +21,7 @@ import org.apache.hop.pipeline.transform.TransformMeta;
     image = "ch/so/agi/hop/gdal/transform/ogroutput/icons/ogr-output.svg",
     categoryDescription = "i18n:org.apache.hop.pipeline.transform:BaseTransform.Category.Output",
     documentationUrl = "/pipeline/transforms/ogr-output.html",
+    classLoaderGroup = "hop-gdal-suite",
     keywords = {"i18n::OgrOutputMeta.keyword", "ogr", "gdal", "vector", "export"})
 public class OgrOutputMeta extends BaseTransformMeta<OgrOutput, OgrOutputData> {
 
