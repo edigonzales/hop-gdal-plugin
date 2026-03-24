@@ -68,7 +68,7 @@ jobs:
           version="${{ steps.gdal_version.outputs.value }}"
           classifier="${{ matrix.native_classifier }}"
           artifact="ch.so.agi:gdal-ffm-natives:${version}:jar:${classifier}"
-          min_size_bytes=$((100 * 1024 * 1024))
+          min_size_bytes=$((20 * 1024 * 1024))
 
           mvn -U -B -ntp dependency:get -Dtransitive=false -Dartifact="$artifact"
 
