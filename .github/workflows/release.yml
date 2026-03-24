@@ -20,23 +20,23 @@ jobs:
           - os: ubuntu-latest
             classifier: linux-x86_64
             native_classifier: natives-linux-x86_64
-            modules: assemblies/assemblies-transform-ogr-reader-linux-x86_64,assemblies/assemblies-transform-ogr-exporter-linux-x86_64,assemblies/assemblies-vector-suite-linux-x86_64
+            modules: assemblies/assemblies-vector-suite-linux-x86_64,assemblies/assemblies-raster-suite-linux-x86_64,assemblies/assemblies-gdal-suite-linux-x86_64
           - os: ubuntu-latest
             classifier: linux-aarch64
             native_classifier: natives-linux-aarch64
-            modules: assemblies/assemblies-transform-ogr-reader-linux-aarch64,assemblies/assemblies-transform-ogr-exporter-linux-aarch64,assemblies/assemblies-vector-suite-linux-aarch64
+            modules: assemblies/assemblies-vector-suite-linux-aarch64,assemblies/assemblies-raster-suite-linux-aarch64,assemblies/assemblies-gdal-suite-linux-aarch64
           - os: macos-15-intel
             classifier: osx-x86_64
             native_classifier: natives-osx-x86_64
-            modules: assemblies/assemblies-transform-ogr-reader-osx-x86_64,assemblies/assemblies-transform-ogr-exporter-osx-x86_64,assemblies/assemblies-vector-suite-osx-x86_64
+            modules: assemblies/assemblies-vector-suite-osx-x86_64,assemblies/assemblies-raster-suite-osx-x86_64,assemblies/assemblies-gdal-suite-osx-x86_64
           - os: macos-15
             classifier: osx-aarch64
             native_classifier: natives-osx-aarch64
-            modules: assemblies/assemblies-transform-ogr-reader-osx-aarch64,assemblies/assemblies-transform-ogr-exporter-osx-aarch64,assemblies/assemblies-vector-suite-osx-aarch64
+            modules: assemblies/assemblies-vector-suite-osx-aarch64,assemblies/assemblies-raster-suite-osx-aarch64,assemblies/assemblies-gdal-suite-osx-aarch64
           - os: windows-latest
             classifier: windows-x86_64
             native_classifier: natives-windows-x86_64
-            modules: assemblies/assemblies-transform-ogr-reader-windows-x86_64,assemblies/assemblies-transform-ogr-exporter-windows-x86_64,assemblies/assemblies-vector-suite-windows-x86_64
+            modules: assemblies/assemblies-vector-suite-windows-x86_64,assemblies/assemblies-raster-suite-windows-x86_64,assemblies/assemblies-gdal-suite-windows-x86_64
 
     steps:
       - name: Checkout
@@ -125,9 +125,9 @@ jobs:
           min_native_bytes = int(os.environ["MIN_NATIVE_BYTES"])
 
           patterns = [
-            f"assemblies/assemblies-transform-ogr-reader-{matrix_classifier}/target/*.zip",
-            f"assemblies/assemblies-transform-ogr-exporter-{matrix_classifier}/target/*.zip",
             f"assemblies/assemblies-vector-suite-{matrix_classifier}/target/*.zip",
+            f"assemblies/assemblies-raster-suite-{matrix_classifier}/target/*.zip",
+            f"assemblies/assemblies-gdal-suite-{matrix_classifier}/target/*.zip",
           ]
           zip_paths = sorted({path for pattern in patterns for path in glob.glob(pattern)})
           if len(zip_paths) != 3:
@@ -175,9 +175,9 @@ jobs:
           name: release-${{ matrix.classifier }}
           if-no-files-found: error
           path: |
-            assemblies/assemblies-transform-ogr-reader-${{ matrix.classifier }}/target/*.zip
-            assemblies/assemblies-transform-ogr-exporter-${{ matrix.classifier }}/target/*.zip
             assemblies/assemblies-vector-suite-${{ matrix.classifier }}/target/*.zip
+            assemblies/assemblies-raster-suite-${{ matrix.classifier }}/target/*.zip
+            assemblies/assemblies-gdal-suite-${{ matrix.classifier }}/target/*.zip
 
   release:
     name: Create release
