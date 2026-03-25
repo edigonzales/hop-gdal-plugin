@@ -21,6 +21,9 @@ can focus on stable row-driven pipeline behaviour and a clean binding surface in
 - concrete raster transforms
   - small Meta/Data/Transform/Dialog modules with transform-specific job specs encoded in the
     Meta classes and assembled into GDAL CLI-style argument lists
+  - product-facing raster tasks are now split into `Info`, `Convert`, `Clip`, `Reproject`,
+    `Resize`, `Mosaic` and `Rasterize Vector`
+  - `Raster Mosaic` stays internally VRT-based through `buildVrt`
 
 ## Dataset model
 
@@ -65,3 +68,10 @@ Each raster transform uses the same technical status envelope:
 Hop geometry rows are converted to a temporary `/vsimem/*.geojson` dataset per row and then
 processed through GDAL rasterize. This avoids shell-outs and keeps the business logic inside the
 bindings plus shared raster core.
+
+## Product direction
+
+The raster product line intentionally follows smaller, task-oriented GDAL-style commands instead of
+one broad spatial transform. The old wide `Warp` surface has been replaced by separate product
+transforms for clipping, reprojection and resizing. This keeps dialogs shorter and makes it easier
+to expose user-friendly presets without mixing unrelated options into one form.

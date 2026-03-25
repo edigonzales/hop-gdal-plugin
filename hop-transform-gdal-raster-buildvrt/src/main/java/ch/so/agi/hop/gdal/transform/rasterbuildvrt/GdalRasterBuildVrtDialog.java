@@ -43,6 +43,7 @@ public class GdalRasterBuildVrtDialog extends BaseTransformDialog {
   private TextVar wHeaderValue;
   private TextVar wGdalConfigOptions;
   private ComboVar wResolutionStrategy;
+  private TextVar wBounds;
   private Button wSeparateBands;
   private TextVar wSrcNoData;
   private TextVar wVrtNoData;
@@ -66,7 +67,7 @@ public class GdalRasterBuildVrtDialog extends BaseTransformDialog {
     shell.setMinimumSize(980, 860);
     PropsUi.setLook(shell);
     setShellImage(shell, input);
-    shell.setText("Raster Mosaic (VRT)");
+    shell.setText("Raster Mosaic");
 
     FormLayout formLayout = new FormLayout();
     formLayout.marginWidth = PropsUi.getFormMargin();
@@ -109,7 +110,7 @@ public class GdalRasterBuildVrtDialog extends BaseTransformDialog {
     int middle = props.getMiddlePct();
     RasterDialogUiSupport.TabSection inputTab = RasterDialogUiSupport.createTabSection(wTabFolder, "Input");
     RasterDialogUiSupport.TabSection outputTab =
-        RasterDialogUiSupport.createTabSection(wTabFolder, "Output & VRT options");
+        RasterDialogUiSupport.createTabSection(wTabFolder, "Output & Mosaic options");
     RasterDialogUiSupport.TabSection remoteTab =
         RasterDialogUiSupport.createTabSection(wTabFolder, "Remote access");
     RasterDialogUiSupport.TabSection advancedTab =
@@ -178,6 +179,7 @@ public class GdalRasterBuildVrtDialog extends BaseTransformDialog {
     wGdalConfigOptions.setText(Utils.isEmpty(input.getGdalConfigOptions()) ? "" : input.getGdalConfigOptions());
     wResolutionStrategy.setText(
         Utils.isEmpty(input.getResolutionStrategy()) ? "AVERAGE" : input.getResolutionStrategy());
+    wBounds.setText(Utils.isEmpty(input.getBounds()) ? "" : input.getBounds());
     wSrcNoData.setText(Utils.isEmpty(input.getSrcNoData()) ? "" : input.getSrcNoData());
     wVrtNoData.setText(Utils.isEmpty(input.getVrtNoData()) ? "" : input.getVrtNoData());
     wAdditionalArgs.setText(Utils.isEmpty(input.getAdditionalArgs()) ? "" : input.getAdditionalArgs());
@@ -251,7 +253,7 @@ public class GdalRasterBuildVrtDialog extends BaseTransformDialog {
         rowWithButton(
             content,
             last,
-            "Output VRT",
+            "Output mosaic path",
             middle,
             margin,
             w -> wOutputValue = (TextVar) w,
@@ -275,6 +277,15 @@ public class GdalRasterBuildVrtDialog extends BaseTransformDialog {
             margin,
             w -> wResolutionStrategy = (ComboVar) w,
             parent -> new ComboVar(variables, parent, SWT.SINGLE | SWT.LEFT | SWT.BORDER));
+    last =
+        row(
+            content,
+            last,
+            "Bounds",
+            middle,
+            margin,
+            w -> wBounds = (TextVar) w,
+            parent -> new TextVar(variables, parent, SWT.SINGLE | SWT.LEFT | SWT.BORDER));
     last =
         row(
             content,
@@ -384,7 +395,7 @@ public class GdalRasterBuildVrtDialog extends BaseTransformDialog {
         row(
             content,
             last,
-            "Additional BuildVRT args",
+            "Additional mosaic args",
             middle,
             margin,
             w -> wAdditionalArgs = (TextVar) w,
@@ -449,6 +460,7 @@ public class GdalRasterBuildVrtDialog extends BaseTransformDialog {
     input.setCustomHeaderValue(wHeaderValue.getText());
     input.setGdalConfigOptions(wGdalConfigOptions.getText());
     input.setResolutionStrategy(wResolutionStrategy.getText());
+    input.setBounds(wBounds.getText());
     input.setSeparateBands(wSeparateBands.getSelection());
     input.setSrcNoData(wSrcNoData.getText());
     input.setVrtNoData(wVrtNoData.getText());

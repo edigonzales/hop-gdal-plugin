@@ -1,6 +1,7 @@
 package ch.so.agi.hop.gdal.transform.rasterconvert;
 
 import ch.so.agi.hop.gdal.raster.core.RasterDialogUiSupport;
+import java.util.List;
 import org.apache.hop.core.util.Utils;
 import org.apache.hop.core.variables.IVariables;
 import org.apache.hop.pipeline.PipelineMeta;
@@ -21,8 +22,6 @@ import org.eclipse.swt.widgets.Shell;
 import org.eclipse.swt.widgets.TabFolder;
 import org.eclipse.swt.widgets.Text;
 
-import java.util.List;
-
 public class GdalRasterConvertDialog extends BaseTransformDialog {
   private final GdalRasterConvertMeta input;
   private ComboVar wInputSourceMode;
@@ -35,6 +34,11 @@ public class GdalRasterConvertDialog extends BaseTransformDialog {
   private TextVar wOutputValue;
   private Button wbOutput;
   private ComboVar wOutputField;
+  private ComboVar wOutputFormat;
+  private ComboVar wCompressionPreset;
+  private Button wTiledOutput;
+  private Button wOverwrite;
+  private Button wAppend;
   private ComboVar wAuthType;
   private TextVar wAuthUsername;
   private TextVar wAuthPassword;
@@ -42,17 +46,11 @@ public class GdalRasterConvertDialog extends BaseTransformDialog {
   private TextVar wHeaderName;
   private TextVar wHeaderValue;
   private TextVar wGdalConfigOptions;
-  private TextVar wOutputFormat;
-  private Button wOverwrite;
-  private TextVar wBandSelection;
-  private TextVar wOutputDataType;
-  private Button wScale;
-  private Button wUnscale;
-  private TextVar wPixelWindow;
-  private TextVar wCoordinateWindow;
-  private TextVar wOutputNoData;
+  private TextVar wOpenOptions;
   private TextVar wCreationOptions;
   private TextVar wAdditionalArgs;
+  private Button wFailOnError;
+  private Button wAddResultFields;
   private TabFolder wTabFolder;
   private List<RasterDialogUiSupport.TabSection> tabSections = List.of();
 
@@ -64,11 +62,11 @@ public class GdalRasterConvertDialog extends BaseTransformDialog {
 
   @Override
   public String open() {
-    Shell parentShell = getParent();
-    shell = new Shell(parentShell, SWT.DIALOG_TRIM | SWT.RESIZE | SWT.MIN | SWT.MAX);
-    shell.setMinimumSize(980, 840);
+    shell = new Shell(getParent(), SWT.DIALOG_TRIM | SWT.RESIZE | SWT.MIN | SWT.MAX);
+    shell.setMinimumSize(980, 860);
     PropsUi.setLook(shell);
     setShellImage(shell, input);
+    shell.setText("Raster Convert");
 
     FormLayout formLayout = new FormLayout();
     formLayout.marginWidth = PropsUi.getFormMargin();
@@ -130,6 +128,7 @@ public class GdalRasterConvertDialog extends BaseTransformDialog {
     wInputValueMode.addModifyListener(e -> refreshEnabledStates());
     wOutputSourceMode.addModifyListener(e -> refreshEnabledStates());
     wOutputValueMode.addModifyListener(e -> refreshEnabledStates());
+    wOutputFormat.addModifyListener(e -> refreshEnabledStates());
     wAuthType.addModifyListener(e -> refreshEnabledStates());
     wTabFolder.addListener(SWT.Selection, e -> refreshTabLayouts());
     shell.addListener(SWT.Resize, e -> refreshTabLayouts());
@@ -150,6 +149,8 @@ public class GdalRasterConvertDialog extends BaseTransformDialog {
     wOutputSourceMode.setItems(modes);
     wInputValueMode.setItems(new String[] {"CONSTANT", "FIELD"});
     wOutputValueMode.setItems(new String[] {"CONSTANT", "FIELD"});
+    wOutputFormat.setItems(new String[] {"GTiff", "COG", "VRT", "PNG", "JPEG", "MEM"});
+    wCompressionPreset.setItems(new String[] {"DEFAULT", "NONE", "LZW", "DEFLATE", "ZSTD", "JPEG"});
     wAuthType.setItems(new String[] {"NONE", "BASIC_AUTH", "BEARER_TOKEN", "SIGNED_URL", "CUSTOM_HEADER"});
   }
 
@@ -167,6 +168,11 @@ public class GdalRasterConvertDialog extends BaseTransformDialog {
     wOutputValueMode.setText(Utils.isEmpty(input.getOutputValueMode()) ? "CONSTANT" : input.getOutputValueMode());
     wOutputValue.setText(Utils.isEmpty(input.getOutputValue()) ? "" : input.getOutputValue());
     wOutputField.setText(Utils.isEmpty(input.getOutputField()) ? "" : input.getOutputField());
+    wOutputFormat.setText(Utils.isEmpty(input.getOutputFormat()) ? "GTiff" : input.getOutputFormat());
+    wCompressionPreset.setText(Utils.isEmpty(input.getCompressionPreset()) ? "DEFAULT" : input.getCompressionPreset());
+    wTiledOutput.setSelection(input.isTiledOutput());
+    wOverwrite.setSelection(input.isOverwrite());
+    wAppend.setSelection(input.isAppend());
     wAuthType.setText(Utils.isEmpty(input.getAuthType()) ? "NONE" : input.getAuthType());
     wAuthUsername.setText(Utils.isEmpty(input.getAuthUsername()) ? "" : input.getAuthUsername());
     wAuthPassword.setText(Utils.isEmpty(input.getAuthPassword()) ? "" : input.getAuthPassword());
@@ -174,265 +180,98 @@ public class GdalRasterConvertDialog extends BaseTransformDialog {
     wHeaderName.setText(Utils.isEmpty(input.getCustomHeaderName()) ? "" : input.getCustomHeaderName());
     wHeaderValue.setText(Utils.isEmpty(input.getCustomHeaderValue()) ? "" : input.getCustomHeaderValue());
     wGdalConfigOptions.setText(Utils.isEmpty(input.getGdalConfigOptions()) ? "" : input.getGdalConfigOptions());
-    wOutputFormat.setText(Utils.isEmpty(input.getOutputFormat()) ? "GTiff" : input.getOutputFormat());
-    wBandSelection.setText(Utils.isEmpty(input.getBandSelection()) ? "" : input.getBandSelection());
-    wOutputDataType.setText(Utils.isEmpty(input.getOutputDataType()) ? "" : input.getOutputDataType());
-    wPixelWindow.setText(Utils.isEmpty(input.getPixelWindow()) ? "" : input.getPixelWindow());
-    wCoordinateWindow.setText(Utils.isEmpty(input.getCoordinateWindow()) ? "" : input.getCoordinateWindow());
-    wOutputNoData.setText(Utils.isEmpty(input.getOutputNoData()) ? "" : input.getOutputNoData());
+    wOpenOptions.setText(Utils.isEmpty(input.getOpenOptions()) ? "" : input.getOpenOptions());
     wCreationOptions.setText(Utils.isEmpty(input.getCreationOptions()) ? "" : input.getCreationOptions());
     wAdditionalArgs.setText(Utils.isEmpty(input.getAdditionalTranslateArgs()) ? "" : input.getAdditionalTranslateArgs());
-    wOverwrite.setSelection(input.isOverwrite());
-    wScale.setSelection(input.isScale());
-    wUnscale.setSelection(input.isUnscale());
+    wFailOnError.setSelection(input.isFailOnError());
+    wAddResultFields.setSelection(input.isAddResultFields());
   }
 
   private void buildInputTab(Composite content, int middle, int margin) {
     Composite last = null;
     last =
-        row(
-            content,
-            last,
-            "Input source mode",
-            middle,
-            margin,
-            w -> wInputSourceMode = (ComboVar) w,
+        row(content, last, "Input source mode", middle, margin, w -> wInputSourceMode = (ComboVar) w,
             parent -> new ComboVar(variables, parent, SWT.SINGLE | SWT.LEFT | SWT.BORDER));
     last =
-        row(
-            content,
-            last,
-            "Input value mode",
-            middle,
-            margin,
-            w -> wInputValueMode = (ComboVar) w,
+        row(content, last, "Input parameter source", middle, margin, w -> wInputValueMode = (ComboVar) w,
             parent -> new ComboVar(variables, parent, SWT.SINGLE | SWT.LEFT | SWT.BORDER));
     last =
-        rowWithButton(
-            content,
-            last,
-            "Input raster / URL / VSI path",
-            middle,
-            margin,
-            w -> wInputValue = (TextVar) w,
-            b -> wbInput = b,
-            parent -> new TextVar(variables, parent, SWT.SINGLE | SWT.LEFT | SWT.BORDER));
-    row(
-        content,
-        last,
-        "Input field",
-        middle,
-        margin,
-        w -> wInputField = (ComboVar) w,
+        rowWithButton(content, last, "Input raster / URL / VSI path", middle, margin, w -> wInputValue = (TextVar) w,
+            b -> wbInput = b, parent -> new TextVar(variables, parent, SWT.SINGLE | SWT.LEFT | SWT.BORDER));
+    row(content, last, "Input field", middle, margin, w -> wInputField = (ComboVar) w,
         parent -> new ComboVar(variables, parent, SWT.SINGLE | SWT.LEFT | SWT.BORDER));
   }
 
   private void buildOutputTab(Composite content, int middle, int margin) {
     Composite last = null;
     last =
-        row(
-            content,
-            last,
-            "Output source mode",
-            middle,
-            margin,
-            w -> wOutputSourceMode = (ComboVar) w,
+        row(content, last, "Output source mode", middle, margin, w -> wOutputSourceMode = (ComboVar) w,
             parent -> new ComboVar(variables, parent, SWT.SINGLE | SWT.LEFT | SWT.BORDER));
     last =
-        row(
-            content,
-            last,
-            "Output value mode",
-            middle,
-            margin,
-            w -> wOutputValueMode = (ComboVar) w,
+        row(content, last, "Output parameter source", middle, margin, w -> wOutputValueMode = (ComboVar) w,
             parent -> new ComboVar(variables, parent, SWT.SINGLE | SWT.LEFT | SWT.BORDER));
     last =
-        rowWithButton(
-            content,
-            last,
-            "Output raster / VSI path",
-            middle,
-            margin,
-            w -> wOutputValue = (TextVar) w,
-            b -> wbOutput = b,
-            parent -> new TextVar(variables, parent, SWT.SINGLE | SWT.LEFT | SWT.BORDER));
+        rowWithButton(content, last, "Output raster / VSI path", middle, margin, w -> wOutputValue = (TextVar) w,
+            b -> wbOutput = b, parent -> new TextVar(variables, parent, SWT.SINGLE | SWT.LEFT | SWT.BORDER));
     last =
-        row(
-            content,
-            last,
-            "Output field",
-            middle,
-            margin,
-            w -> wOutputField = (ComboVar) w,
+        row(content, last, "Output field", middle, margin, w -> wOutputField = (ComboVar) w,
             parent -> new ComboVar(variables, parent, SWT.SINGLE | SWT.LEFT | SWT.BORDER));
     last =
-        row(
-            content,
-            last,
-            "Output format",
-            middle,
-            margin,
-            w -> wOutputFormat = (TextVar) w,
-            parent -> new TextVar(variables, parent, SWT.SINGLE | SWT.LEFT | SWT.BORDER));
+        row(content, last, "Output format", middle, margin, w -> wOutputFormat = (ComboVar) w,
+            parent -> new ComboVar(variables, parent, SWT.SINGLE | SWT.LEFT | SWT.BORDER));
     last =
-        row(
-            content,
-            last,
-            "Band selection",
-            middle,
-            margin,
-            w -> wBandSelection = (TextVar) w,
-            parent -> new TextVar(variables, parent, SWT.SINGLE | SWT.LEFT | SWT.BORDER));
+        row(content, last, "Compression preset", middle, margin, w -> wCompressionPreset = (ComboVar) w,
+            parent -> new ComboVar(variables, parent, SWT.SINGLE | SWT.LEFT | SWT.BORDER));
     last =
-        row(
-            content,
-            last,
-            "Output data type",
-            middle,
-            margin,
-            w -> wOutputDataType = (TextVar) w,
-            parent -> new TextVar(variables, parent, SWT.SINGLE | SWT.LEFT | SWT.BORDER));
-    last =
-        row(
-            content,
-            last,
-            "Pixel window",
-            middle,
-            margin,
-            w -> wPixelWindow = (TextVar) w,
-            parent -> new TextVar(variables, parent, SWT.SINGLE | SWT.LEFT | SWT.BORDER));
-    last =
-        row(
-            content,
-            last,
-            "Coordinate window",
-            middle,
-            margin,
-            w -> wCoordinateWindow = (TextVar) w,
-            parent -> new TextVar(variables, parent, SWT.SINGLE | SWT.LEFT | SWT.BORDER));
-    last =
-        row(
-            content,
-            last,
-            "Output nodata",
-            middle,
-            margin,
-            w -> wOutputNoData = (TextVar) w,
-            parent -> new TextVar(variables, parent, SWT.SINGLE | SWT.LEFT | SWT.BORDER));
-    last =
-        row(
-            content,
-            last,
-            "Overwrite",
-            middle,
-            margin,
-            w -> wOverwrite = (Button) w,
+        row(content, last, "Tiled output", middle, margin, w -> wTiledOutput = (Button) w,
             parent -> new Button(parent, SWT.CHECK));
     last =
-        row(
-            content,
-            last,
-            "Scale",
-            middle,
-            margin,
-            w -> wScale = (Button) w,
+        row(content, last, "Overwrite", middle, margin, w -> wOverwrite = (Button) w,
             parent -> new Button(parent, SWT.CHECK));
-    row(
-        content,
-        last,
-        "Unscale",
-        middle,
-        margin,
-        w -> wUnscale = (Button) w,
+    row(content, last, "Append", middle, margin, w -> wAppend = (Button) w,
         parent -> new Button(parent, SWT.CHECK));
   }
 
   private void buildRemoteTab(Composite content, int middle, int margin) {
     Composite last = null;
     last =
-        row(
-            content,
-            last,
-            "Authentication type",
-            middle,
-            margin,
-            w -> wAuthType = (ComboVar) w,
+        row(content, last, "Authentication type", middle, margin, w -> wAuthType = (ComboVar) w,
             parent -> new ComboVar(variables, parent, SWT.SINGLE | SWT.LEFT | SWT.BORDER));
     last =
-        row(
-            content,
-            last,
-            "Basic auth user",
-            middle,
-            margin,
-            w -> wAuthUsername = (TextVar) w,
+        row(content, last, "Basic auth user", middle, margin, w -> wAuthUsername = (TextVar) w,
             parent -> new TextVar(variables, parent, SWT.SINGLE | SWT.LEFT | SWT.BORDER));
     last =
-        row(
-            content,
-            last,
-            "Basic auth password",
-            middle,
-            margin,
-            w -> wAuthPassword = (TextVar) w,
+        row(content, last, "Basic auth password", middle, margin, w -> wAuthPassword = (TextVar) w,
             parent -> new TextVar(variables, parent, SWT.SINGLE | SWT.LEFT | SWT.BORDER | SWT.PASSWORD));
     last =
-        row(
-            content,
-            last,
-            "Bearer token",
-            middle,
-            margin,
-            w -> wBearerToken = (TextVar) w,
+        row(content, last, "Bearer token", middle, margin, w -> wBearerToken = (TextVar) w,
             parent -> new TextVar(variables, parent, SWT.SINGLE | SWT.LEFT | SWT.BORDER));
     last =
-        row(
-            content,
-            last,
-            "Custom header name",
-            middle,
-            margin,
-            w -> wHeaderName = (TextVar) w,
+        row(content, last, "Custom header name", middle, margin, w -> wHeaderName = (TextVar) w,
             parent -> new TextVar(variables, parent, SWT.SINGLE | SWT.LEFT | SWT.BORDER));
     last =
-        row(
-            content,
-            last,
-            "Custom header value",
-            middle,
-            margin,
-            w -> wHeaderValue = (TextVar) w,
+        row(content, last, "Custom header value", middle, margin, w -> wHeaderValue = (TextVar) w,
             parent -> new TextVar(variables, parent, SWT.SINGLE | SWT.LEFT | SWT.BORDER));
-    row(
-        content,
-        last,
-        "GDAL/VSI config options",
-        middle,
-        margin,
-        w -> wGdalConfigOptions = (TextVar) w,
+    row(content, last, "GDAL/VSI config options", middle, margin, w -> wGdalConfigOptions = (TextVar) w,
         parent -> new TextVar(variables, parent, SWT.SINGLE | SWT.LEFT | SWT.BORDER));
   }
 
   private void buildAdvancedTab(Composite content, int middle, int margin) {
     Composite last = null;
     last =
-        row(
-            content,
-            last,
-            "Creation options",
-            middle,
-            margin,
-            w -> wCreationOptions = (TextVar) w,
+        row(content, last, "Input open options", middle, margin, w -> wOpenOptions = (TextVar) w,
             parent -> new TextVar(variables, parent, SWT.SINGLE | SWT.LEFT | SWT.BORDER));
-    row(
-        content,
-        last,
-        "Additional translate args",
-        middle,
-        margin,
-        w -> wAdditionalArgs = (TextVar) w,
-        parent -> new TextVar(variables, parent, SWT.SINGLE | SWT.LEFT | SWT.BORDER));
+    last =
+        row(content, last, "Creation options", middle, margin, w -> wCreationOptions = (TextVar) w,
+            parent -> new TextVar(variables, parent, SWT.SINGLE | SWT.LEFT | SWT.BORDER));
+    last =
+        row(content, last, "Additional translate args", middle, margin, w -> wAdditionalArgs = (TextVar) w,
+            parent -> new TextVar(variables, parent, SWT.SINGLE | SWT.LEFT | SWT.BORDER));
+    last =
+        row(content, last, "Fail pipeline on first error", middle, margin, w -> wFailOnError = (Button) w,
+            parent -> new Button(parent, SWT.CHECK));
+    row(content, last, "Add result fields", middle, margin, w -> wAddResultFields = (Button) w,
+        parent -> new Button(parent, SWT.CHECK));
   }
 
   private void refreshEnabledStates() {
@@ -440,17 +279,15 @@ public class GdalRasterConvertDialog extends BaseTransformDialog {
     boolean constantOutput = !"FIELD".equalsIgnoreCase(wOutputValueMode.getText());
     boolean localInput = "LOCAL_FILE".equalsIgnoreCase(wInputSourceMode.getText());
     boolean localOutput = "LOCAL_FILE".equalsIgnoreCase(wOutputSourceMode.getText());
-    RasterDialogUiSupport.setValueModeState(
-        wInputValue, wbInput, wInputField, constantInput, localInput);
-    RasterDialogUiSupport.setValueModeState(
-        wOutputValue, wbOutput, wOutputField, constantOutput, localOutput);
+    RasterDialogUiSupport.setValueModeState(wInputValue, wbInput, wInputField, constantInput, localInput);
+    RasterDialogUiSupport.setValueModeState(wOutputValue, wbOutput, wOutputField, constantOutput, localOutput);
     RasterDialogUiSupport.setAuthState(
-        wAuthType.getText(),
-        wAuthUsername,
-        wAuthPassword,
-        wBearerToken,
-        wHeaderName,
-        wHeaderValue);
+        wAuthType.getText(), wAuthUsername, wAuthPassword, wBearerToken, wHeaderName, wHeaderValue);
+
+    boolean geotiffLike =
+        "GTIFF".equalsIgnoreCase(wOutputFormat.getText()) || "COG".equalsIgnoreCase(wOutputFormat.getText());
+    RasterDialogUiSupport.setControlEnabled(wCompressionPreset, geotiffLike);
+    RasterDialogUiSupport.setControlEnabled(wTiledOutput, geotiffLike);
     refreshTabLayouts();
   }
 
@@ -468,6 +305,11 @@ public class GdalRasterConvertDialog extends BaseTransformDialog {
     input.setOutputValueMode(wOutputValueMode.getText());
     input.setOutputValue(wOutputValue.getText());
     input.setOutputField(wOutputField.getText());
+    input.setOutputFormat(wOutputFormat.getText());
+    input.setCompressionPreset(wCompressionPreset.getText());
+    input.setTiledOutput(wTiledOutput.getSelection());
+    input.setOverwrite(wOverwrite.getSelection());
+    input.setAppend(wAppend.getSelection());
     input.setAuthType(wAuthType.getText());
     input.setAuthUsername(wAuthUsername.getText());
     input.setAuthPassword(wAuthPassword.getText());
@@ -475,17 +317,11 @@ public class GdalRasterConvertDialog extends BaseTransformDialog {
     input.setCustomHeaderName(wHeaderName.getText());
     input.setCustomHeaderValue(wHeaderValue.getText());
     input.setGdalConfigOptions(wGdalConfigOptions.getText());
-    input.setOutputFormat(wOutputFormat.getText());
-    input.setOverwrite(wOverwrite.getSelection());
-    input.setBandSelection(wBandSelection.getText());
-    input.setOutputDataType(wOutputDataType.getText());
-    input.setScale(wScale.getSelection());
-    input.setUnscale(wUnscale.getSelection());
-    input.setPixelWindow(wPixelWindow.getText());
-    input.setCoordinateWindow(wCoordinateWindow.getText());
-    input.setOutputNoData(wOutputNoData.getText());
+    input.setOpenOptions(wOpenOptions.getText());
     input.setCreationOptions(wCreationOptions.getText());
     input.setAdditionalTranslateArgs(wAdditionalArgs.getText());
+    input.setFailOnError(wFailOnError.getSelection());
+    input.setAddResultFields(wAddResultFields.getSelection());
     dispose();
   }
 

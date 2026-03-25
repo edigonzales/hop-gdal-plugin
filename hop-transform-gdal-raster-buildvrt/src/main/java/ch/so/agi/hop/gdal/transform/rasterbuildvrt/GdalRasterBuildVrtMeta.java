@@ -2,6 +2,7 @@ package ch.so.agi.hop.gdal.transform.rasterbuildvrt;
 
 import ch.so.agi.hop.gdal.raster.core.AbstractGdalRasterMeta;
 import ch.so.agi.hop.gdal.raster.core.AdditionalArgsParser;
+import ch.so.agi.hop.gdal.raster.core.BoundsSpec;
 import ch.so.agi.hop.gdal.raster.core.CreationOptionParser;
 import java.util.List;
 import org.apache.hop.core.CheckResult;
@@ -42,6 +43,7 @@ public class GdalRasterBuildVrtMeta
   @HopMetadataProperty private String customHeaderValue;
   @HopMetadataProperty private String gdalConfigOptions;
   @HopMetadataProperty private String resolutionStrategy;
+  @HopMetadataProperty private String bounds;
   @HopMetadataProperty private boolean separateBands;
   @HopMetadataProperty private String srcNoData;
   @HopMetadataProperty private String vrtNoData;
@@ -66,6 +68,7 @@ public class GdalRasterBuildVrtMeta
     customHeaderValue = "";
     gdalConfigOptions = "";
     resolutionStrategy = "AVERAGE";
+    bounds = "";
     separateBands = false;
     srcNoData = "";
     vrtNoData = "";
@@ -105,11 +108,14 @@ public class GdalRasterBuildVrtMeta
     }
     if (!"FIELD".equalsIgnoreCase(outputValueMode)
         && (outputValue == null || outputValue.isBlank())) {
-      remarks.add(new CheckResult(ICheckResult.TYPE_RESULT_ERROR, "Output VRT path is required", transformMeta));
+      remarks.add(new CheckResult(ICheckResult.TYPE_RESULT_ERROR, "Output mosaic path is required", transformMeta));
       return;
     }
 
     try {
+      if (bounds != null && !bounds.isBlank()) {
+        BoundsSpec.parse(bounds);
+      }
       CreationOptionParser.parseKeyValueMap(gdalConfigOptions);
       AdditionalArgsParser.parse(additionalArgs);
     } catch (IllegalArgumentException e) {
@@ -247,6 +253,14 @@ public class GdalRasterBuildVrtMeta
 
   public void setResolutionStrategy(String resolutionStrategy) {
     this.resolutionStrategy = resolutionStrategy;
+  }
+
+  public String getBounds() {
+    return bounds;
+  }
+
+  public void setBounds(String bounds) {
+    this.bounds = bounds;
   }
 
   public boolean isSeparateBands() {

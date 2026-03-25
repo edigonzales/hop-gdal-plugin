@@ -11,8 +11,10 @@ Apache Hop 2.17 plugin suite for GDAL/OGR-based vector and raster transforms on 
 - Raster suite
   - `Raster Info`
   - `Raster Convert`
-  - `Raster Clip / Reproject / Resample`
-  - `Raster Mosaic (VRT)`
+  - `Raster Clip`
+  - `Raster Reproject`
+  - `Raster Resize`
+  - `Raster Mosaic`
   - `Rasterize Vector`
 - GDAL suite
   - all vector and raster transforms in one shared installable ZIP
@@ -31,7 +33,9 @@ modules live beside them in the same Maven reactor.
 - `hop-transform-ogr-exporter`
 - `hop-transform-gdal-raster-info`
 - `hop-transform-gdal-raster-convert`
-- `hop-transform-gdal-raster-warp`
+- `hop-transform-gdal-raster-clip`
+- `hop-transform-gdal-raster-reproject`
+- `hop-transform-gdal-raster-resize`
 - `hop-transform-gdal-raster-buildvrt`
 - `hop-transform-gdal-rasterize-vector`
 - `assemblies/`
@@ -146,12 +150,18 @@ bleed across transform copies.
   - writes the full GDAL info JSON to `gdal_details_json`
 - `Raster Convert`
   - wraps `gdal_translate`
-  - supports COG-oriented output options
-- `Raster Clip / Reproject / Resample`
+  - intentionally focuses on format conversion plus friendly compression / tiling presets
+- `Raster Clip`
+  - uses `gdal_translate` for pixel-window clipping and `gdalwarp` for bounds / cutline clipping
+- `Raster Reproject`
   - wraps `gdalwarp`
-- `Raster Mosaic (VRT)`
+  - focuses on CRS change, target sizing and resampling
+- `Raster Resize`
+  - wraps `gdal_translate`
+  - focuses on output size or output resolution changes
+- `Raster Mosaic`
   - wraps `gdalbuildvrt`
-  - V1 expects a raster list per row, not grouped multi-row aggregation
+  - V1 is intentionally VRT-only and expects a raster list per row, not grouped multi-row aggregation
 - `Rasterize Vector`
   - wraps `gdal_rasterize`
   - supports dataset/layer input and Hop geometry field input
@@ -178,8 +188,8 @@ All raster transforms can append the same technical result fields:
 ## V1 limitations
 
 - V1 contains only pipeline transforms, no workflow/actions.
-- `Raster Mosaic (VRT)` is list-per-row only; grouped aggregation across rows is out of scope.
-- The raster warp implementation already models inline polygon AOI, but GeoJSON/WKT UX is still
-  intentionally lightweight in this first cut.
+- `Raster Mosaic` is list-per-row only and currently writes virtual mosaics (VRT), not materialized outputs.
+- The product line now favors smaller task-oriented transforms over a single broad warp dialog.
+- Automatic migration of older `Raster Clip / Reproject / Resample` pipelines is out of scope.
 - Sensitive auth values are modelled separately and not meant for verbose logging, but there is no
   dedicated secret store integration yet.

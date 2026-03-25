@@ -42,14 +42,11 @@ public class GdalRasterConvertMeta
   @HopMetadataProperty private String customHeaderValue;
   @HopMetadataProperty private String gdalConfigOptions;
   @HopMetadataProperty private String outputFormat;
+  @HopMetadataProperty private String compressionPreset;
+  @HopMetadataProperty private boolean tiledOutput;
   @HopMetadataProperty private boolean overwrite;
-  @HopMetadataProperty private String bandSelection;
-  @HopMetadataProperty private String outputDataType;
-  @HopMetadataProperty private boolean scale;
-  @HopMetadataProperty private boolean unscale;
-  @HopMetadataProperty private String pixelWindow;
-  @HopMetadataProperty private String coordinateWindow;
-  @HopMetadataProperty private String outputNoData;
+  @HopMetadataProperty private boolean append;
+  @HopMetadataProperty private String openOptions;
   @HopMetadataProperty private String creationOptions;
   @HopMetadataProperty private String additionalTranslateArgs;
 
@@ -71,14 +68,11 @@ public class GdalRasterConvertMeta
     customHeaderValue = "";
     gdalConfigOptions = "";
     outputFormat = "GTiff";
+    compressionPreset = "DEFAULT";
+    tiledOutput = false;
     overwrite = false;
-    bandSelection = "";
-    outputDataType = "";
-    scale = false;
-    unscale = false;
-    pixelWindow = "";
-    coordinateWindow = "";
-    outputNoData = "";
+    append = false;
+    openOptions = "";
     creationOptions = "";
     additionalTranslateArgs = "";
     setFailOnError(true);
@@ -114,6 +108,7 @@ public class GdalRasterConvertMeta
     }
 
     try {
+      CreationOptionParser.parse(openOptions);
       CreationOptionParser.parse(creationOptions);
       CreationOptionParser.parseKeyValueMap(gdalConfigOptions);
       AdditionalArgsParser.parse(additionalTranslateArgs);
@@ -157,22 +152,16 @@ public class GdalRasterConvertMeta
   public void setGdalConfigOptions(String gdalConfigOptions) { this.gdalConfigOptions = gdalConfigOptions; }
   public String getOutputFormat() { return outputFormat; }
   public void setOutputFormat(String outputFormat) { this.outputFormat = outputFormat; }
+  public String getCompressionPreset() { return compressionPreset; }
+  public void setCompressionPreset(String compressionPreset) { this.compressionPreset = compressionPreset; }
+  public boolean isTiledOutput() { return tiledOutput; }
+  public void setTiledOutput(boolean tiledOutput) { this.tiledOutput = tiledOutput; }
   public boolean isOverwrite() { return overwrite; }
   public void setOverwrite(boolean overwrite) { this.overwrite = overwrite; }
-  public String getBandSelection() { return bandSelection; }
-  public void setBandSelection(String bandSelection) { this.bandSelection = bandSelection; }
-  public String getOutputDataType() { return outputDataType; }
-  public void setOutputDataType(String outputDataType) { this.outputDataType = outputDataType; }
-  public boolean isScale() { return scale; }
-  public void setScale(boolean scale) { this.scale = scale; }
-  public boolean isUnscale() { return unscale; }
-  public void setUnscale(boolean unscale) { this.unscale = unscale; }
-  public String getPixelWindow() { return pixelWindow; }
-  public void setPixelWindow(String pixelWindow) { this.pixelWindow = pixelWindow; }
-  public String getCoordinateWindow() { return coordinateWindow; }
-  public void setCoordinateWindow(String coordinateWindow) { this.coordinateWindow = coordinateWindow; }
-  public String getOutputNoData() { return outputNoData; }
-  public void setOutputNoData(String outputNoData) { this.outputNoData = outputNoData; }
+  public boolean isAppend() { return append; }
+  public void setAppend(boolean append) { this.append = append; }
+  public String getOpenOptions() { return openOptions; }
+  public void setOpenOptions(String openOptions) { this.openOptions = openOptions; }
   public String getCreationOptions() { return creationOptions; }
   public void setCreationOptions(String creationOptions) { this.creationOptions = creationOptions; }
   public String getAdditionalTranslateArgs() { return additionalTranslateArgs; }

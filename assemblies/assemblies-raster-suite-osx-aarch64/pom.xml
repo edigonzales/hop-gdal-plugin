@@ -29,7 +29,19 @@
     </dependency>
     <dependency>
       <groupId>ch.so.agi</groupId>
-      <artifactId>hop-transform-gdal-raster-warp</artifactId>
+      <artifactId>hop-transform-gdal-raster-clip</artifactId>
+      <version>${project.version}</version>
+      <scope>runtime</scope>
+    </dependency>
+    <dependency>
+      <groupId>ch.so.agi</groupId>
+      <artifactId>hop-transform-gdal-raster-reproject</artifactId>
+      <version>${project.version}</version>
+      <scope>runtime</scope>
+    </dependency>
+    <dependency>
+      <groupId>ch.so.agi</groupId>
+      <artifactId>hop-transform-gdal-raster-resize</artifactId>
       <version>${project.version}</version>
       <scope>runtime</scope>
     </dependency>

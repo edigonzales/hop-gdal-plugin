@@ -17,7 +17,9 @@
       <includes>
         <include>ch.so.agi:hop-transform-gdal-raster-info</include>
         <include>ch.so.agi:hop-transform-gdal-raster-convert</include>
-        <include>ch.so.agi:hop-transform-gdal-raster-warp</include>
+        <include>ch.so.agi:hop-transform-gdal-raster-clip</include>
+        <include>ch.so.agi:hop-transform-gdal-raster-reproject</include>
+        <include>ch.so.agi:hop-transform-gdal-raster-resize</include>
         <include>ch.so.agi:hop-transform-gdal-raster-buildvrt</include>
         <include>ch.so.agi:hop-transform-gdal-rasterize-vector</include>
 
@@ -33,7 +35,9 @@
       <excludes>
         <exclude>ch.so.agi:hop-transform-gdal-raster-info</exclude>
         <exclude>ch.so.agi:hop-transform-gdal-raster-convert</exclude>
-        <exclude>ch.so.agi:hop-transform-gdal-raster-warp</exclude>
+        <exclude>ch.so.agi:hop-transform-gdal-raster-clip</exclude>
+        <exclude>ch.so.agi:hop-transform-gdal-raster-reproject</exclude>
+        <exclude>ch.so.agi:hop-transform-gdal-raster-resize</exclude>
         <exclude>ch.so.agi:hop-transform-gdal-raster-buildvrt</exclude>
         <exclude>ch.so.agi:hop-transform-gdal-rasterize-vector</exclude>
 

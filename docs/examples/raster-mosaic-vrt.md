@@ -1,6 +1,6 @@
-# Example: Raster Mosaic (VRT)
+# Example: Raster Mosaic
 
-Use `Raster Mosaic (VRT)` with:
+Use `Raster Mosaic` with:
 
 - Input source interpretation: `LOCAL_FILE`
 - Input list parameter source: `CONSTANT`
@@ -12,11 +12,11 @@ Use `Raster Mosaic (VRT)` with:
 /data/c.tif
 ```
 
-- Output VRT: `/data/mosaic.vrt`
+- Output mosaic path: `/data/mosaic.vrt`
 - Resolution strategy: `AVERAGE`
 - Allow projection difference: disabled for the strict case
 
 V1 note:
 
-- one row equals one VRT build job
+- one row equals one virtual mosaic build job
 - multi-row grouping is not part of this version

@@ -8,6 +8,7 @@ import ch.so.agi.hop.gdal.raster.core.RasterTransformResult;
 import ch.so.agi.hop.gdal.raster.core.RasterTransformSupport;
 import ch.so.agi.hop.gdal.raster.core.RemoteAccessSpec;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import org.apache.hop.pipeline.Pipeline;
 import org.apache.hop.pipeline.PipelineMeta;
@@ -31,78 +32,74 @@ public class GdalRasterConvertTransform
     long start = System.currentTimeMillis();
     DatasetRef input =
         RasterTransformSupport.resolveDatasetRef(
-            meta.getInputSourceMode(), meta.getInputValueMode(), meta.getInputValue(), meta.getInputField(), row, getInputRowMeta(), this::resolveConstant);
+            meta.getInputSourceMode(),
+            meta.getInputValueMode(),
+            meta.getInputValue(),
+            meta.getInputField(),
+            row,
+            getInputRowMeta(),
+            this::resolveConstant);
     DatasetRef output =
         RasterTransformSupport.resolveDatasetRef(
-            meta.getOutputSourceMode(), meta.getOutputValueMode(), meta.getOutputValue(), meta.getOutputField(), row, getInputRowMeta(), this::resolveConstant);
+            meta.getOutputSourceMode(),
+            meta.getOutputValueMode(),
+            meta.getOutputValue(),
+            meta.getOutputField(),
+            row,
+            getInputRowMeta(),
+            this::resolveConstant);
     RemoteAccessSpec remoteAccess =
         RasterTransformSupport.remoteAccessSpec(
-            meta.getAuthType(), meta.getAuthUsername(), meta.getAuthPassword(), meta.getBearerToken(),
-            meta.getCustomHeaderName(), meta.getCustomHeaderValue(), meta.getGdalConfigOptions(), this::resolveConstant);
+            meta.getAuthType(),
+            meta.getAuthUsername(),
+            meta.getAuthPassword(),
+            meta.getBearerToken(),
+            meta.getCustomHeaderName(),
+            meta.getCustomHeaderValue(),
+            meta.getGdalConfigOptions(),
+            this::resolveConstant);
 
     List<String> args = new ArrayList<>();
-    if (meta.getOutputFormat() != null && !meta.getOutputFormat().isBlank()) {
+    String outputFormat = resolveConstant(meta.getOutputFormat());
+    if (!outputFormat.isBlank()) {
       args.add("-of");
-      args.add(resolveConstant(meta.getOutputFormat()));
+      args.add(outputFormat);
     }
     if (meta.isOverwrite()) {
       args.add("-overwrite");
     }
-    for (String band : splitValues(resolveConstant(meta.getBandSelection()))) {
-      args.add("-b");
-      args.add(band);
+    if (meta.isAppend()) {
+      args.add("-append");
     }
-    if (meta.getOutputDataType() != null && !meta.getOutputDataType().isBlank()) {
-      args.add("-ot");
-      args.add(resolveConstant(meta.getOutputDataType()));
+    for (String openOption : CreationOptionParser.parse(resolveConstant(meta.getOpenOptions()))) {
+      args.add("-oo");
+      args.add(openOption);
     }
-    if (meta.isScale()) {
-      args.add("-scale");
+
+    LinkedHashMap<String, String> creationOptions = new LinkedHashMap<>();
+    String compressionPreset = resolveConstant(meta.getCompressionPreset());
+    boolean geotiffLike =
+        "GTIFF".equalsIgnoreCase(outputFormat) || "COG".equalsIgnoreCase(outputFormat);
+    if (geotiffLike && !compressionPreset.isBlank() && !"DEFAULT".equalsIgnoreCase(compressionPreset)) {
+      creationOptions.put("COMPRESS", compressionPreset);
     }
-    if (meta.isUnscale()) {
-      args.add("-unscale");
+    if (meta.isTiledOutput()) {
+      if ("GTIFF".equalsIgnoreCase(outputFormat)) {
+        creationOptions.put("TILED", "YES");
+      } else if ("COG".equalsIgnoreCase(outputFormat)) {
+        creationOptions.put("BLOCKSIZE", "512");
+      }
     }
-    appendWindowArg(args, "-srcwin", resolveConstant(meta.getPixelWindow()));
-    appendWindowArg(args, "-projwin", resolveConstant(meta.getCoordinateWindow()));
-    if (meta.getOutputNoData() != null && !meta.getOutputNoData().isBlank()) {
-      args.add("-a_nodata");
-      args.add(resolveConstant(meta.getOutputNoData()));
-    }
-    for (String creationOption : CreationOptionParser.parse(resolveConstant(meta.getCreationOptions()))) {
+    creationOptions.putAll(CreationOptionParser.parseKeyValueMap(resolveConstant(meta.getCreationOptions())));
+
+    for (var entry : creationOptions.entrySet()) {
       args.add("-co");
-      args.add(creationOption);
+      args.add(entry.getKey() + "=" + entry.getValue());
     }
     args.addAll(AdditionalArgsParser.parse(resolveConstant(meta.getAdditionalTranslateArgs())));
 
     gdalClient().translate(input, output, remoteAccess, args);
-    return RasterTransformResult.success(System.currentTimeMillis() - start, input.value(), output.value(), "{}");
-  }
-
-  private static void appendWindowArg(List<String> args, String flag, String value) {
-    if (value == null || value.isBlank()) {
-      return;
-    }
-    String[] parts = value.split("[,;]");
-    if (parts.length != 4) {
-      throw new IllegalArgumentException("Window must contain four values: " + value);
-    }
-    args.add(flag);
-    for (String part : parts) {
-      args.add(part.trim());
-    }
-  }
-
-  private static List<String> splitValues(String text) {
-    if (text == null || text.isBlank()) {
-      return List.of();
-    }
-    List<String> values = new ArrayList<>();
-    for (String token : text.split("[,;]")) {
-      String cleaned = token.trim();
-      if (!cleaned.isBlank()) {
-        values.add(cleaned);
-      }
-    }
-    return values;
+    return RasterTransformResult.success(
+        System.currentTimeMillis() - start, input.value(), output.value(), "{}");
   }
 }

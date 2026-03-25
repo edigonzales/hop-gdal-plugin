@@ -2,6 +2,7 @@ package ch.so.agi.hop.gdal.transform.rasterbuildvrt;
 
 import ch.so.agi.hop.gdal.raster.core.AbstractGdalRasterTransform;
 import ch.so.agi.hop.gdal.raster.core.AdditionalArgsParser;
+import ch.so.agi.hop.gdal.raster.core.BoundsSpec;
 import ch.so.agi.hop.gdal.raster.core.DatasetRef;
 import ch.so.agi.hop.gdal.raster.core.RasterTransformResult;
 import ch.so.agi.hop.gdal.raster.core.RasterTransformSupport;
@@ -63,6 +64,9 @@ public class GdalRasterBuildVrtTransform
     if (meta.getResolutionStrategy() != null && !meta.getResolutionStrategy().isBlank()) {
       args.add("-resolution");
       args.add(resolveConstant(meta.getResolutionStrategy()).toLowerCase());
+    }
+    if (meta.getBounds() != null && !meta.getBounds().isBlank()) {
+      args.addAll(BoundsSpec.parse(resolveConstant(meta.getBounds())).toWarpArgs());
     }
     if (meta.isSeparateBands()) {
       args.add("-separate");

@@ -214,6 +214,8 @@ public class OgrInputDialogComposite extends Composite {
     fdLabel.right = new FormAttachment(middlePct, -margin);
     fdLabel.top = new FormAttachment(control, 0, SWT.TOP);
     label.setLayoutData(fdLabel);
+//    String bar
+    //var foo = b;
   }
 
   private void buildRowMultiline(

@@ -18,7 +18,9 @@
     <module>hop-transform-ogr-exporter</module>
     <module>hop-transform-gdal-raster-info</module>
     <module>hop-transform-gdal-raster-convert</module>
-    <module>hop-transform-gdal-raster-warp</module>
+    <module>hop-transform-gdal-raster-clip</module>
+    <module>hop-transform-gdal-raster-reproject</module>
+    <module>hop-transform-gdal-raster-resize</module>
     <module>hop-transform-gdal-raster-buildvrt</module>
     <module>hop-transform-gdal-rasterize-vector</module>
     <module>assemblies</module>

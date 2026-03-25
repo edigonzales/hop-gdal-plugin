@@ -11,31 +11,51 @@
 
 - UI name: `Raster Convert`
 - Binding/API: `Gdal.translate(...)`
-- Purpose: format conversion and structural raster changes
+- Purpose: format conversion with user-friendly output presets
 - Typical uses:
   - GeoTIFF to COG
-  - band selection
-  - datatype changes
-  - source/coordinate window extraction
+  - GeoTIFF compression presets
+  - tiling presets for GTiff/COG
+  - format-specific creation option overrides
 
-## Raster Clip / Reproject / Resample
+## Raster Clip
 
-- UI name: `Raster Clip / Reproject / Resample`
-- Binding/API: `Gdal.warp(...)`
-- Purpose: spatial transformation
+- UI name: `Raster Clip`
+- Binding/API: `Gdal.warp(...)` and `Gdal.translate(...)`
+- Purpose: spatial clipping only
 - Typical uses:
-  - reprojection
-  - resolution changes
   - bounds clipping
-  - cutline/AOI clipping
+  - pixel window clipping
+  - cutline clipping from inline geometry or template dataset
 
-## Raster Mosaic (VRT)
+## Raster Reproject
 
-- UI name: `Raster Mosaic (VRT)`
+- UI name: `Raster Reproject`
+- Binding/API: `Gdal.warp(...)`
+- Purpose: CRS change and target sizing
+- Typical uses:
+  - reprojection into a target CRS
+  - target resolution or target size
+  - optional output bounds and nodata handling
+
+## Raster Resize
+
+- UI name: `Raster Resize`
+- Binding/API: `Gdal.translate(...)`
+- Purpose: output size or output resolution changes without clip-specific UI
+- Typical uses:
+  - resize to fixed width/height
+  - resize to target resolution
+  - choose explicit resampling
+
+## Raster Mosaic
+
+- UI name: `Raster Mosaic`
 - Binding/API: `Gdal.buildVrt(...)`
-- Purpose: generate a VRT mosaic or stack from a list of raster inputs
+- Purpose: generate a virtual raster mosaic or stack from a list of raster inputs
 - V1 limitation:
   - source list is supplied per row as semicolon/newline/JSON-array text
+  - output is VRT-only in this phase
   - no grouped row aggregation yet
 
 ## Rasterize Vector
