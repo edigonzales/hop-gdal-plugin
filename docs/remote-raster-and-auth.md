@@ -16,6 +16,16 @@ Raster transforms expose these source modes:
 `HTTP_URL` is appropriate for public or authenticated HTTP/HTTPS COGs.
 `GDAL_VSI` is the escape hatch for explicit VSI paths.
 
+## Output modes
+
+For output targets, only these modes are supported:
+
+- `LOCAL_FILE`
+- `GDAL_VSI`
+
+`HTTP_URL` output is intentionally blocked. GDAL `/vsicurl/` is treated as a read-focused
+dataset path and is not used as a reliable generic write target in this plugin.
+
 ## Authentication
 
 The shared model distinguishes auth type from free-form config:

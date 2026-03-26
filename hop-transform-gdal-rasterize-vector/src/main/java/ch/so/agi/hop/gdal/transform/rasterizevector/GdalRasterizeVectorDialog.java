@@ -161,12 +161,13 @@ public class GdalRasterizeVectorDialog extends BaseTransformDialog {
   }
 
   private void populateCombos() {
-    String[] datasetModes = {"LOCAL_FILE", "HTTP_URL", "GDAL_VSI"};
+    String[] inputModes = {"LOCAL_FILE", "HTTP_URL", "GDAL_VSI"};
+    String[] outputModes = {"LOCAL_FILE", "GDAL_VSI"};
     wVectorInputMode.setItems(new String[] {"DATASET_LAYER", "HOP_GEOMETRY_FIELD"});
-    wInputSourceMode.setItems(datasetModes);
+    wInputSourceMode.setItems(inputModes);
     wInputValueMode.setItems(new String[] {"CONSTANT", "FIELD"});
     wBurnStrategy.setItems(new String[] {"CONSTANT_VALUE", "ATTRIBUTE_FIELD"});
-    wOutputSourceMode.setItems(datasetModes);
+    wOutputSourceMode.setItems(outputModes);
     wOutputValueMode.setItems(new String[] {"CONSTANT", "FIELD"});
     wGridMode.setItems(new String[] {"BOUNDS_RESOLUTION", "BOUNDS_SIZE"});
     wAuthType.setItems(new String[] {"NONE", "BASIC_AUTH", "BEARER_TOKEN", "SIGNED_URL", "CUSTOM_HEADER"});

@@ -38,7 +38,7 @@ public class GdalRasterizeVectorTransform
     long start = System.currentTimeMillis();
 
     DatasetRef output =
-        RasterTransformSupport.resolveDatasetRef(
+        RasterTransformSupport.resolveOutputDatasetRef(
             meta.getOutputSourceMode(),
             meta.getOutputValueMode(),
             meta.getOutputValue(),

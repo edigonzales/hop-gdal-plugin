@@ -159,10 +159,11 @@ public class GdalRasterWarpDialog extends BaseTransformDialog {
   }
 
   private void populateCombos() {
-    String[] datasetModes = {"LOCAL_FILE", "HTTP_URL", "GDAL_VSI"};
-    wInputSourceMode.setItems(datasetModes);
-    wOutputSourceMode.setItems(datasetModes);
-    wAoiDatasetSourceMode.setItems(datasetModes);
+    String[] inputModes = {"LOCAL_FILE", "HTTP_URL", "GDAL_VSI"};
+    String[] outputModes = {"LOCAL_FILE", "GDAL_VSI"};
+    wInputSourceMode.setItems(inputModes);
+    wOutputSourceMode.setItems(outputModes);
+    wAoiDatasetSourceMode.setItems(inputModes);
     wInputValueMode.setItems(new String[] {"CONSTANT", "FIELD"});
     wOutputValueMode.setItems(new String[] {"CONSTANT", "FIELD"});
     wAuthType.setItems(new String[] {"NONE", "BASIC_AUTH", "BEARER_TOKEN", "SIGNED_URL", "CUSTOM_HEADER"});

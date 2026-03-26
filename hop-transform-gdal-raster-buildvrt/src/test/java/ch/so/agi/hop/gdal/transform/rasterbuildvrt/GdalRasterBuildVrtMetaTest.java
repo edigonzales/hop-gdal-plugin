@@ -36,4 +36,22 @@ class GdalRasterBuildVrtMetaTest {
     assertFalse(remarks.isEmpty());
     assertEquals(ICheckResult.TYPE_RESULT_ERROR, remarks.getFirst().getType());
   }
+
+  @Test
+  void checkShouldRejectHttpUrlOutputMode() {
+    GdalRasterBuildVrtMeta meta = new GdalRasterBuildVrtMeta();
+    meta.setDefault();
+    meta.setInputListValue("/tmp/a.tif");
+    meta.setOutputValue("/tmp/out.vrt");
+    meta.setOutputSourceMode("HTTP_URL");
+
+    List<ICheckResult> remarks = new ArrayList<>();
+    meta.check(remarks, null, null, null, null, null, null, null, null);
+
+    assertFalse(remarks.isEmpty());
+    assertEquals(ICheckResult.TYPE_RESULT_ERROR, remarks.getFirst().getType());
+    assertEquals(
+        "HTTP/HTTPS output is not supported; use LOCAL_FILE or GDAL_VSI",
+        remarks.getFirst().getText());
+  }
 }

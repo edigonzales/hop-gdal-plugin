@@ -156,9 +156,10 @@ public class GdalRasterReprojectDialog extends BaseTransformDialog {
   }
 
   private void populateCombos() {
-    String[] datasetModes = {"LOCAL_FILE", "HTTP_URL", "GDAL_VSI"};
-    wInputSourceMode.setItems(datasetModes);
-    wOutputSourceMode.setItems(datasetModes);
+    String[] inputModes = {"LOCAL_FILE", "HTTP_URL", "GDAL_VSI"};
+    String[] outputModes = {"LOCAL_FILE", "GDAL_VSI"};
+    wInputSourceMode.setItems(inputModes);
+    wOutputSourceMode.setItems(outputModes);
     wInputValueMode.setItems(new String[] {"CONSTANT", "FIELD"});
     wOutputValueMode.setItems(new String[] {"CONSTANT", "FIELD"});
     wOutputFormat.setItems(RasterFormatCatalog.outputFormats().toArray(String[]::new));

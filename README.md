@@ -125,6 +125,9 @@ The shared dataset model distinguishes:
 `HTTP_URL` inputs are passed to GDAL as `/vsicurl/` datasets, not downloaded upfront in Java.
 This is intended for HTTP/HTTPS COG access and block-wise reads.
 
+For output dataset parameters, only `LOCAL_FILE` and `GDAL_VSI` are supported.
+`HTTP_URL` output is explicitly rejected because `/vsicurl/` is not a robust write path.
+
 Supported auth modelling in V1:
 
 - `NONE`

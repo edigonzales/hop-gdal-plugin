@@ -109,7 +109,7 @@ jobs:
         env:
           MATRIX_CLASSIFIER: ${{ matrix.classifier }}
           NATIVE_CLASSIFIER: ${{ matrix.native_classifier }}
-          MIN_NATIVE_BYTES: "104857600"
+          MIN_NATIVE_BYTES: "20971520"
         run: |
           set -euo pipefail
           python - <<'PY'

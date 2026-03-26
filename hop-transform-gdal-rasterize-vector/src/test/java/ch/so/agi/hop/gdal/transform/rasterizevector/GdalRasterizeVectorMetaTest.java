@@ -37,4 +37,22 @@ class GdalRasterizeVectorMetaTest {
     assertFalse(remarks.isEmpty());
     assertEquals(ICheckResult.TYPE_RESULT_ERROR, remarks.getFirst().getType());
   }
+
+  @Test
+  void checkShouldRejectHttpUrlOutputMode() {
+    GdalRasterizeVectorMeta meta = new GdalRasterizeVectorMeta();
+    meta.setDefault();
+    meta.setInputValue("/tmp/in.gpkg");
+    meta.setOutputValue("/tmp/out.tif");
+    meta.setOutputSourceMode("HTTP_URL");
+
+    List<ICheckResult> remarks = new ArrayList<>();
+    meta.check(remarks, null, null, null, null, null, null, null, null);
+
+    assertFalse(remarks.isEmpty());
+    assertEquals(ICheckResult.TYPE_RESULT_ERROR, remarks.getFirst().getType());
+    assertEquals(
+        "HTTP/HTTPS output is not supported; use LOCAL_FILE or GDAL_VSI",
+        remarks.getFirst().getText());
+  }
 }

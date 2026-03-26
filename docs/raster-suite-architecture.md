@@ -37,6 +37,9 @@ handling:
 That avoids local `Files.exists(...)` checks against remote datasets and keeps HTTP/HTTPS COGs as
 first-class GDAL inputs.
 
+For output datasets, the runtime allows only `LOCAL_FILE` and `GDAL_VSI`.
+`HTTP_URL` output is rejected to avoid unsupported `/vsicurl/` write assumptions.
+
 ## Config and auth model
 
 Remote access is split into:

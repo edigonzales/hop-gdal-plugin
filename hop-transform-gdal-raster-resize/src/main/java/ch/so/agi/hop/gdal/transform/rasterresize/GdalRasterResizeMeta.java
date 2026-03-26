@@ -3,6 +3,7 @@ package ch.so.agi.hop.gdal.transform.rasterresize;
 import ch.so.agi.hop.gdal.raster.core.AbstractGdalRasterMeta;
 import ch.so.agi.hop.gdal.raster.core.AdditionalArgsParser;
 import ch.so.agi.hop.gdal.raster.core.CreationOptionParser;
+import ch.so.agi.hop.gdal.raster.core.RasterTransformSupport;
 import java.util.List;
 import org.apache.hop.core.CheckResult;
 import org.apache.hop.core.ICheckResult;
@@ -108,6 +109,12 @@ public class GdalRasterResizeMeta
     }
     if (!"FIELD".equalsIgnoreCase(outputValueMode) && (outputValue == null || outputValue.isBlank())) {
       remarks.add(new CheckResult(ICheckResult.TYPE_RESULT_ERROR, "Output raster is required", transformMeta));
+      return;
+    }
+    try {
+      RasterTransformSupport.validateOutputSourceMode(outputSourceMode);
+    } catch (IllegalArgumentException e) {
+      remarks.add(new CheckResult(ICheckResult.TYPE_RESULT_ERROR, e.getMessage(), transformMeta));
       return;
     }
 

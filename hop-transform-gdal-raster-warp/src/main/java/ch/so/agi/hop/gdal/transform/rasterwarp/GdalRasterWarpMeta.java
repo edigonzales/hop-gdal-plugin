@@ -1,8 +1,20 @@
 package ch.so.agi.hop.gdal.transform.rasterwarp;
 
 import ch.so.agi.hop.gdal.raster.core.AbstractGdalRasterMeta;
+import ch.so.agi.hop.gdal.raster.core.AdditionalArgsParser;
+import ch.so.agi.hop.gdal.raster.core.BoundsSpec;
+import ch.so.agi.hop.gdal.raster.core.CreationOptionParser;
+import ch.so.agi.hop.gdal.raster.core.RasterTransformSupport;
+import java.util.List;
+import org.apache.hop.core.CheckResult;
+import org.apache.hop.core.ICheckResult;
 import org.apache.hop.core.annotations.Transform;
+import org.apache.hop.core.row.IRowMeta;
+import org.apache.hop.core.variables.IVariables;
 import org.apache.hop.metadata.api.HopMetadataProperty;
+import org.apache.hop.metadata.api.IHopMetadataProvider;
+import org.apache.hop.pipeline.PipelineMeta;
+import org.apache.hop.pipeline.transform.TransformMeta;
 
 @Transform(
     id = "GDAL_RASTER_WARP_TRANSFORM",
@@ -84,6 +96,55 @@ public class GdalRasterWarpMeta
     additionalWarpArgs = "";
     setFailOnError(true);
     setAddResultFields(true);
+  }
+
+  @Override
+  public void check(
+      List<ICheckResult> remarks,
+      PipelineMeta pipelineMeta,
+      TransformMeta transformMeta,
+      IRowMeta prev,
+      String[] input,
+      String[] output,
+      IRowMeta info,
+      IVariables variables,
+      IHopMetadataProvider metadataProvider) {
+    if ("FIELD".equalsIgnoreCase(inputValueMode) && (inputField == null || inputField.isBlank())) {
+      remarks.add(new CheckResult(ICheckResult.TYPE_RESULT_ERROR, "Input field is required", transformMeta));
+      return;
+    }
+    if (!"FIELD".equalsIgnoreCase(inputValueMode) && (inputValue == null || inputValue.isBlank())) {
+      remarks.add(new CheckResult(ICheckResult.TYPE_RESULT_ERROR, "Input raster is required", transformMeta));
+      return;
+    }
+    if ("FIELD".equalsIgnoreCase(outputValueMode) && (outputField == null || outputField.isBlank())) {
+      remarks.add(new CheckResult(ICheckResult.TYPE_RESULT_ERROR, "Output field is required", transformMeta));
+      return;
+    }
+    if (!"FIELD".equalsIgnoreCase(outputValueMode) && (outputValue == null || outputValue.isBlank())) {
+      remarks.add(new CheckResult(ICheckResult.TYPE_RESULT_ERROR, "Output raster is required", transformMeta));
+      return;
+    }
+    try {
+      RasterTransformSupport.validateOutputSourceMode(outputSourceMode);
+    } catch (IllegalArgumentException e) {
+      remarks.add(new CheckResult(ICheckResult.TYPE_RESULT_ERROR, e.getMessage(), transformMeta));
+      return;
+    }
+
+    try {
+      if (bounds != null && !bounds.isBlank()) {
+        BoundsSpec.parse(bounds);
+      }
+      CreationOptionParser.parse(creationOptions);
+      CreationOptionParser.parseKeyValueMap(gdalConfigOptions);
+      AdditionalArgsParser.parse(additionalWarpArgs);
+    } catch (IllegalArgumentException e) {
+      remarks.add(new CheckResult(ICheckResult.TYPE_RESULT_ERROR, e.getMessage(), transformMeta));
+      return;
+    }
+
+    remarks.add(new CheckResult(ICheckResult.TYPE_RESULT_OK, "Raster warp configuration looks valid", transformMeta));
   }
 
   public String getInputSourceMode() { return inputSourceMode; }

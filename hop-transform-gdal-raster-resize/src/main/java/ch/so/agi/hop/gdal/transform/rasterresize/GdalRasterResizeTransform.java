@@ -39,7 +39,7 @@ public class GdalRasterResizeTransform
             getInputRowMeta(),
             this::resolveConstant);
     DatasetRef output =
-        RasterTransformSupport.resolveDatasetRef(
+        RasterTransformSupport.resolveOutputDatasetRef(
             meta.getOutputSourceMode(),
             meta.getOutputValueMode(),
             meta.getOutputValue(),

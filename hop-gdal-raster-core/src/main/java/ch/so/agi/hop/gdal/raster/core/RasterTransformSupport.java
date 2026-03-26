@@ -28,6 +28,34 @@ public final class RasterTransformSupport {
     return new DatasetRef(DatasetRefType.fromValue(sourceMode), resolved);
   }
 
+  public static DatasetRef resolveOutputDatasetRef(
+      String sourceMode,
+      String valueMode,
+      String constantValue,
+      String fieldName,
+      Object[] row,
+      IRowMeta rowMeta,
+      Function<String, String> constantResolver) {
+    DatasetRef datasetRef =
+        resolveDatasetRef(sourceMode, valueMode, constantValue, fieldName, row, rowMeta, constantResolver);
+    validateOutputDatasetRef(datasetRef);
+    return datasetRef;
+  }
+
+  public static void validateOutputSourceMode(String sourceMode) {
+    if (DatasetRefType.fromValue(sourceMode) == DatasetRefType.HTTP_URL) {
+      throw new IllegalArgumentException(
+          "HTTP/HTTPS output is not supported; use LOCAL_FILE or GDAL_VSI");
+    }
+  }
+
+  public static void validateOutputDatasetRef(DatasetRef datasetRef) {
+    if (datasetRef.type() == DatasetRefType.HTTP_URL) {
+      throw new IllegalArgumentException(
+          "HTTP/HTTPS output is not supported; use LOCAL_FILE or GDAL_VSI");
+    }
+  }
+
   public static RemoteAccessSpec remoteAccessSpec(
       String authType,
       String username,

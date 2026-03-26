@@ -37,7 +37,7 @@ public class GdalRasterWarpTransform
     long start = System.currentTimeMillis();
     DatasetRef input = RasterTransformSupport.resolveDatasetRef(
         meta.getInputSourceMode(), meta.getInputValueMode(), meta.getInputValue(), meta.getInputField(), row, getInputRowMeta(), this::resolveConstant);
-    DatasetRef output = RasterTransformSupport.resolveDatasetRef(
+    DatasetRef output = RasterTransformSupport.resolveOutputDatasetRef(
         meta.getOutputSourceMode(), meta.getOutputValueMode(), meta.getOutputValue(), meta.getOutputField(), row, getInputRowMeta(), this::resolveConstant);
     RemoteAccessSpec remoteAccess = RasterTransformSupport.remoteAccessSpec(
         meta.getAuthType(), meta.getAuthUsername(), meta.getAuthPassword(), meta.getBearerToken(),

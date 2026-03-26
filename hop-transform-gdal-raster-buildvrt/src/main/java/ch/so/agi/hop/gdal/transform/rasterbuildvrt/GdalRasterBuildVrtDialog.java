@@ -145,9 +145,10 @@ public class GdalRasterBuildVrtDialog extends BaseTransformDialog {
   }
 
   private void populateCombos() {
-    String[] datasetModes = {"LOCAL_FILE", "HTTP_URL", "GDAL_VSI"};
-    wInputInterpretationMode.setItems(datasetModes);
-    wOutputSourceMode.setItems(datasetModes);
+    String[] inputModes = {"LOCAL_FILE", "HTTP_URL", "GDAL_VSI"};
+    String[] outputModes = {"LOCAL_FILE", "GDAL_VSI"};
+    wInputInterpretationMode.setItems(inputModes);
+    wOutputSourceMode.setItems(outputModes);
     wInputListValueMode.setItems(new String[] {"CONSTANT", "FIELD"});
     wOutputValueMode.setItems(new String[] {"CONSTANT", "FIELD"});
     wAuthType.setItems(new String[] {"NONE", "BASIC_AUTH", "BEARER_TOKEN", "SIGNED_URL", "CUSTOM_HEADER"});
