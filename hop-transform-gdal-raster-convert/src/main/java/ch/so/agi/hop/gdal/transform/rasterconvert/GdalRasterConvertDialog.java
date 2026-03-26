@@ -1,6 +1,8 @@
 package ch.so.agi.hop.gdal.transform.rasterconvert;
 
 import ch.so.agi.hop.gdal.raster.core.RasterDialogUiSupport;
+import ch.so.agi.hop.gdal.raster.core.RasterFormatCatalog;
+import java.util.ArrayList;
 import java.util.List;
 import org.apache.hop.core.util.Utils;
 import org.apache.hop.core.variables.IVariables;
@@ -37,8 +39,7 @@ public class GdalRasterConvertDialog extends BaseTransformDialog {
   private ComboVar wOutputFormat;
   private ComboVar wCompressionPreset;
   private Button wTiledOutput;
-  private Button wOverwrite;
-  private Button wAppend;
+  private ComboVar wWriteMode;
   private ComboVar wAuthType;
   private TextVar wAuthUsername;
   private TextVar wAuthPassword;
@@ -128,7 +129,11 @@ public class GdalRasterConvertDialog extends BaseTransformDialog {
     wInputValueMode.addModifyListener(e -> refreshEnabledStates());
     wOutputSourceMode.addModifyListener(e -> refreshEnabledStates());
     wOutputValueMode.addModifyListener(e -> refreshEnabledStates());
-    wOutputFormat.addModifyListener(e -> refreshEnabledStates());
+    wOutputFormat.addModifyListener(
+        e -> {
+          refreshCompressionPresetChoices(wCompressionPreset.getText());
+          refreshEnabledStates();
+        });
     wAuthType.addModifyListener(e -> refreshEnabledStates());
     wTabFolder.addListener(SWT.Selection, e -> refreshTabLayouts());
     shell.addListener(SWT.Resize, e -> refreshTabLayouts());
@@ -149,8 +154,9 @@ public class GdalRasterConvertDialog extends BaseTransformDialog {
     wOutputSourceMode.setItems(modes);
     wInputValueMode.setItems(new String[] {"CONSTANT", "FIELD"});
     wOutputValueMode.setItems(new String[] {"CONSTANT", "FIELD"});
-    wOutputFormat.setItems(new String[] {"GTiff", "COG", "VRT", "PNG", "JPEG", "MEM"});
-    wCompressionPreset.setItems(new String[] {"DEFAULT", "NONE", "LZW", "DEFLATE", "ZSTD", "JPEG"});
+    wOutputFormat.setItems(RasterFormatCatalog.outputFormats().toArray(String[]::new));
+    refreshCompressionPresetChoices("DEFAULT");
+    wWriteMode.setItems(new String[] {"FAIL_IF_EXISTS", "OVERWRITE", "APPEND"});
     wAuthType.setItems(new String[] {"NONE", "BASIC_AUTH", "BEARER_TOKEN", "SIGNED_URL", "CUSTOM_HEADER"});
   }
 
@@ -169,10 +175,10 @@ public class GdalRasterConvertDialog extends BaseTransformDialog {
     wOutputValue.setText(Utils.isEmpty(input.getOutputValue()) ? "" : input.getOutputValue());
     wOutputField.setText(Utils.isEmpty(input.getOutputField()) ? "" : input.getOutputField());
     wOutputFormat.setText(Utils.isEmpty(input.getOutputFormat()) ? "GTiff" : input.getOutputFormat());
-    wCompressionPreset.setText(Utils.isEmpty(input.getCompressionPreset()) ? "DEFAULT" : input.getCompressionPreset());
+    refreshCompressionPresetChoices(
+        Utils.isEmpty(input.getCompressionPreset()) ? "DEFAULT" : input.getCompressionPreset());
     wTiledOutput.setSelection(input.isTiledOutput());
-    wOverwrite.setSelection(input.isOverwrite());
-    wAppend.setSelection(input.isAppend());
+    wWriteMode.setText(Utils.isEmpty(input.getOutputWriteMode()) ? "FAIL_IF_EXISTS" : input.getOutputWriteMode());
     wAuthType.setText(Utils.isEmpty(input.getAuthType()) ? "NONE" : input.getAuthType());
     wAuthUsername.setText(Utils.isEmpty(input.getAuthUsername()) ? "" : input.getAuthUsername());
     wAuthPassword.setText(Utils.isEmpty(input.getAuthPassword()) ? "" : input.getAuthPassword());
@@ -225,11 +231,8 @@ public class GdalRasterConvertDialog extends BaseTransformDialog {
     last =
         row(content, last, "Tiled output", middle, margin, w -> wTiledOutput = (Button) w,
             parent -> new Button(parent, SWT.CHECK));
-    last =
-        row(content, last, "Overwrite", middle, margin, w -> wOverwrite = (Button) w,
-            parent -> new Button(parent, SWT.CHECK));
-    row(content, last, "Append", middle, margin, w -> wAppend = (Button) w,
-        parent -> new Button(parent, SWT.CHECK));
+    row(content, last, "Write mode", middle, margin, w -> wWriteMode = (ComboVar) w,
+        parent -> new ComboVar(variables, parent, SWT.SINGLE | SWT.LEFT | SWT.BORDER));
   }
 
   private void buildRemoteTab(Composite content, int middle, int margin) {
@@ -284,11 +287,37 @@ public class GdalRasterConvertDialog extends BaseTransformDialog {
     RasterDialogUiSupport.setAuthState(
         wAuthType.getText(), wAuthUsername, wAuthPassword, wBearerToken, wHeaderName, wHeaderValue);
 
+    boolean compressionAvailable = wCompressionPreset.getItemCount() > 1;
+    RasterDialogUiSupport.setControlEnabled(wCompressionPreset, compressionAvailable);
     boolean geotiffLike =
         "GTIFF".equalsIgnoreCase(wOutputFormat.getText()) || "COG".equalsIgnoreCase(wOutputFormat.getText());
-    RasterDialogUiSupport.setControlEnabled(wCompressionPreset, geotiffLike);
     RasterDialogUiSupport.setControlEnabled(wTiledOutput, geotiffLike);
     refreshTabLayouts();
+  }
+
+  private void refreshCompressionPresetChoices(String requestedSelection) {
+    List<String> choices = new ArrayList<>();
+    choices.add("DEFAULT");
+    choices.addAll(RasterFormatCatalog.compressionOptions(wOutputFormat.getText()));
+    wCompressionPreset.setItems(choices.toArray(String[]::new));
+
+    String selected = requestedSelection;
+    if (Utils.isEmpty(selected)) {
+      selected = wCompressionPreset.getText();
+    }
+    boolean supported = false;
+    if (!Utils.isEmpty(selected)) {
+      for (String choice : choices) {
+        if (choice.equalsIgnoreCase(selected)) {
+          supported = true;
+          break;
+        }
+      }
+    }
+    if (!supported) {
+      selected = "DEFAULT";
+    }
+    wCompressionPreset.setText(selected);
   }
 
   private void refreshTabLayouts() {
@@ -308,8 +337,7 @@ public class GdalRasterConvertDialog extends BaseTransformDialog {
     input.setOutputFormat(wOutputFormat.getText());
     input.setCompressionPreset(wCompressionPreset.getText());
     input.setTiledOutput(wTiledOutput.getSelection());
-    input.setOverwrite(wOverwrite.getSelection());
-    input.setAppend(wAppend.getSelection());
+    input.setOutputWriteMode(wWriteMode.getText());
     input.setAuthType(wAuthType.getText());
     input.setAuthUsername(wAuthUsername.getText());
     input.setAuthPassword(wAuthPassword.getText());

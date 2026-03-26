@@ -44,8 +44,7 @@ public class GdalRasterConvertMeta
   @HopMetadataProperty private String outputFormat;
   @HopMetadataProperty private String compressionPreset;
   @HopMetadataProperty private boolean tiledOutput;
-  @HopMetadataProperty private boolean overwrite;
-  @HopMetadataProperty private boolean append;
+  @HopMetadataProperty private String outputWriteMode;
   @HopMetadataProperty private String openOptions;
   @HopMetadataProperty private String creationOptions;
   @HopMetadataProperty private String additionalTranslateArgs;
@@ -70,8 +69,7 @@ public class GdalRasterConvertMeta
     outputFormat = "GTiff";
     compressionPreset = "DEFAULT";
     tiledOutput = false;
-    overwrite = false;
-    append = false;
+    outputWriteMode = "FAIL_IF_EXISTS";
     openOptions = "";
     creationOptions = "";
     additionalTranslateArgs = "";
@@ -156,14 +154,22 @@ public class GdalRasterConvertMeta
   public void setCompressionPreset(String compressionPreset) { this.compressionPreset = compressionPreset; }
   public boolean isTiledOutput() { return tiledOutput; }
   public void setTiledOutput(boolean tiledOutput) { this.tiledOutput = tiledOutput; }
-  public boolean isOverwrite() { return overwrite; }
-  public void setOverwrite(boolean overwrite) { this.overwrite = overwrite; }
-  public boolean isAppend() { return append; }
-  public void setAppend(boolean append) { this.append = append; }
+  public String getOutputWriteMode() { return outputWriteMode; }
+  public void setOutputWriteMode(String outputWriteMode) { this.outputWriteMode = normalizeOutputWriteMode(outputWriteMode); }
   public String getOpenOptions() { return openOptions; }
   public void setOpenOptions(String openOptions) { this.openOptions = openOptions; }
   public String getCreationOptions() { return creationOptions; }
   public void setCreationOptions(String creationOptions) { this.creationOptions = creationOptions; }
   public String getAdditionalTranslateArgs() { return additionalTranslateArgs; }
   public void setAdditionalTranslateArgs(String additionalTranslateArgs) { this.additionalTranslateArgs = additionalTranslateArgs; }
+
+  private static String normalizeOutputWriteMode(String mode) {
+    if ("OVERWRITE".equalsIgnoreCase(mode)) {
+      return "OVERWRITE";
+    }
+    if ("APPEND".equalsIgnoreCase(mode)) {
+      return "APPEND";
+    }
+    return "FAIL_IF_EXISTS";
+  }
 }

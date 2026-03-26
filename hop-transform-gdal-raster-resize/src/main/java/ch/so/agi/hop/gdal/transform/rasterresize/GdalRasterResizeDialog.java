@@ -1,6 +1,7 @@
 package ch.so.agi.hop.gdal.transform.rasterresize;
 
 import ch.so.agi.hop.gdal.raster.core.RasterDialogUiSupport;
+import ch.so.agi.hop.gdal.raster.core.RasterFormatCatalog;
 import java.util.List;
 import org.apache.hop.core.util.Utils;
 import org.apache.hop.core.variables.IVariables;
@@ -34,7 +35,7 @@ public class GdalRasterResizeDialog extends BaseTransformDialog {
   private TextVar wOutputValue;
   private Button wbOutput;
   private ComboVar wOutputField;
-  private TextVar wOutputFormat;
+  private ComboVar wOutputFormat;
   private Button wOverwrite;
   private ComboVar wSizingMode;
   private TextVar wResolutionX;
@@ -152,6 +153,7 @@ public class GdalRasterResizeDialog extends BaseTransformDialog {
     wOutputSourceMode.setItems(datasetModes);
     wInputValueMode.setItems(new String[] {"CONSTANT", "FIELD"});
     wOutputValueMode.setItems(new String[] {"CONSTANT", "FIELD"});
+    wOutputFormat.setItems(RasterFormatCatalog.outputFormats().toArray(String[]::new));
     wSizingMode.setItems(new String[] {"SIZE", "RESOLUTION"});
     wAuthType.setItems(new String[] {"NONE", "BASIC_AUTH", "BEARER_TOKEN", "SIGNED_URL", "CUSTOM_HEADER"});
     wResamplingMethod.setItems(
@@ -223,8 +225,8 @@ public class GdalRasterResizeDialog extends BaseTransformDialog {
         row(content, last, "Output field", middle, margin, w -> wOutputField = (ComboVar) w,
             parent -> new ComboVar(variables, parent, SWT.SINGLE | SWT.LEFT | SWT.BORDER));
     last =
-        row(content, last, "Output format", middle, margin, w -> wOutputFormat = (TextVar) w,
-            parent -> new TextVar(variables, parent, SWT.SINGLE | SWT.LEFT | SWT.BORDER));
+        row(content, last, "Output format", middle, margin, w -> wOutputFormat = (ComboVar) w,
+            parent -> new ComboVar(variables, parent, SWT.SINGLE | SWT.LEFT | SWT.BORDER));
     last =
         row(content, last, "Resize by", middle, margin, w -> wSizingMode = (ComboVar) w,
             parent -> new ComboVar(variables, parent, SWT.SINGLE | SWT.LEFT | SWT.BORDER));

@@ -1,6 +1,7 @@
 package ch.so.agi.hop.gdal.transform.rasterclip;
 
 import ch.so.agi.hop.gdal.raster.core.RasterDialogUiSupport;
+import ch.so.agi.hop.gdal.raster.core.RasterFormatCatalog;
 import java.util.List;
 import org.apache.hop.core.util.Utils;
 import org.apache.hop.core.variables.IVariables;
@@ -34,7 +35,7 @@ public class GdalRasterClipDialog extends BaseTransformDialog {
   private TextVar wOutputValue;
   private Button wbOutput;
   private ComboVar wOutputField;
-  private TextVar wOutputFormat;
+  private ComboVar wOutputFormat;
   private Button wOverwrite;
   private ComboVar wClipMode;
   private TextVar wBounds;
@@ -160,6 +161,7 @@ public class GdalRasterClipDialog extends BaseTransformDialog {
     wTemplateSourceMode.setItems(datasetModes);
     wInputValueMode.setItems(new String[] {"CONSTANT", "FIELD"});
     wOutputValueMode.setItems(new String[] {"CONSTANT", "FIELD"});
+    wOutputFormat.setItems(RasterFormatCatalog.outputFormats().toArray(String[]::new));
     wClipMode.setItems(new String[] {"BOUNDING_BOX", "PIXEL_WINDOW", "INLINE_GEOMETRY", "TEMPLATE_DATASET"});
     wAuthType.setItems(new String[] {"NONE", "BASIC_AUTH", "BEARER_TOKEN", "SIGNED_URL", "CUSTOM_HEADER"});
   }
@@ -290,8 +292,8 @@ public class GdalRasterClipDialog extends BaseTransformDialog {
             "Output format",
             middle,
             margin,
-            w -> wOutputFormat = (TextVar) w,
-            parent -> new TextVar(variables, parent, SWT.SINGLE | SWT.LEFT | SWT.BORDER));
+            w -> wOutputFormat = (ComboVar) w,
+            parent -> new ComboVar(variables, parent, SWT.SINGLE | SWT.LEFT | SWT.BORDER));
     row(
         content,
         last,

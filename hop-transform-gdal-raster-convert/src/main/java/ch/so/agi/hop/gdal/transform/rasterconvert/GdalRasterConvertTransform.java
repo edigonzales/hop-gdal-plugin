@@ -65,10 +65,11 @@ public class GdalRasterConvertTransform
       args.add("-of");
       args.add(outputFormat);
     }
-    if (meta.isOverwrite()) {
+    String writeMode = meta.getOutputWriteMode();
+    if ("OVERWRITE".equalsIgnoreCase(writeMode)) {
       args.add("-overwrite");
     }
-    if (meta.isAppend()) {
+    if ("APPEND".equalsIgnoreCase(writeMode)) {
       args.add("-append");
     }
     for (String openOption : CreationOptionParser.parse(resolveConstant(meta.getOpenOptions()))) {
@@ -78,9 +79,7 @@ public class GdalRasterConvertTransform
 
     LinkedHashMap<String, String> creationOptions = new LinkedHashMap<>();
     String compressionPreset = resolveConstant(meta.getCompressionPreset());
-    boolean geotiffLike =
-        "GTIFF".equalsIgnoreCase(outputFormat) || "COG".equalsIgnoreCase(outputFormat);
-    if (geotiffLike && !compressionPreset.isBlank() && !"DEFAULT".equalsIgnoreCase(compressionPreset)) {
+    if (!compressionPreset.isBlank() && !"DEFAULT".equalsIgnoreCase(compressionPreset)) {
       creationOptions.put("COMPRESS", compressionPreset);
     }
     if (meta.isTiledOutput()) {
