@@ -24,4 +24,14 @@ public record BoundsSpec(double minX, double minY, double maxX, double maxY) {
   public List<String> toWarpArgs() {
     return List.of("-te", Double.toString(minX), Double.toString(minY), Double.toString(maxX), Double.toString(maxY));
   }
+
+  public String toCommaSeparated() {
+    return Double.toString(minX)
+        + ","
+        + Double.toString(minY)
+        + ","
+        + Double.toString(maxX)
+        + ","
+        + Double.toString(maxY);
+  }
 }

@@ -5,6 +5,7 @@ import ch.so.agi.hop.gdal.raster.core.AdditionalArgsParser;
 import ch.so.agi.hop.gdal.raster.core.CreationOptionParser;
 import ch.so.agi.hop.gdal.raster.core.DatasetRef;
 import ch.so.agi.hop.gdal.raster.core.RasterTransformResult;
+import ch.so.agi.hop.gdal.raster.core.RasterOutputOptionsSupport;
 import ch.so.agi.hop.gdal.raster.core.RasterTransformSupport;
 import ch.so.agi.hop.gdal.raster.core.RemoteAccessSpec;
 import java.util.ArrayList;
@@ -62,26 +63,18 @@ public class GdalRasterConvertTransform
     List<String> args = new ArrayList<>();
     String outputFormat = resolveConstant(meta.getOutputFormat());
     if (!outputFormat.isBlank()) {
-      args.add("-of");
+      args.add("--output-format");
       args.add(outputFormat);
     }
-    String writeMode = meta.getOutputWriteMode();
-    if ("OVERWRITE".equalsIgnoreCase(writeMode)) {
-      args.add("-overwrite");
-    }
-    if ("APPEND".equalsIgnoreCase(writeMode)) {
-      args.add("-append");
-    }
+    RasterOutputOptionsSupport.addRasterAlgorithmWriteModeArgs(args, meta.getOutputWriteMode());
     for (String openOption : CreationOptionParser.parse(resolveConstant(meta.getOpenOptions()))) {
-      args.add("-oo");
+      args.add("--open-option");
       args.add(openOption);
     }
 
     LinkedHashMap<String, String> creationOptions = new LinkedHashMap<>();
-    String compressionPreset = resolveConstant(meta.getCompressionPreset());
-    if (!compressionPreset.isBlank() && !"DEFAULT".equalsIgnoreCase(compressionPreset)) {
-      creationOptions.put("COMPRESS", compressionPreset);
-    }
+    RasterOutputOptionsSupport.applyCompressionPreset(
+        creationOptions, resolveConstant(meta.getCompressionPreset()));
     if (meta.isTiledOutput()) {
       if ("GTIFF".equalsIgnoreCase(outputFormat)) {
         creationOptions.put("TILED", "YES");
@@ -92,12 +85,12 @@ public class GdalRasterConvertTransform
     creationOptions.putAll(CreationOptionParser.parseKeyValueMap(resolveConstant(meta.getCreationOptions())));
 
     for (var entry : creationOptions.entrySet()) {
-      args.add("-co");
+      args.add("--creation-option");
       args.add(entry.getKey() + "=" + entry.getValue());
     }
     args.addAll(AdditionalArgsParser.parse(resolveConstant(meta.getAdditionalTranslateArgs())));
 
-    gdalClient().translate(input, output, remoteAccess, args);
+    gdalClient().rasterConvert(input, output, remoteAccess, args);
     return RasterTransformResult.success(
         System.currentTimeMillis() - start, input.value(), output.value(), "{}");
   }

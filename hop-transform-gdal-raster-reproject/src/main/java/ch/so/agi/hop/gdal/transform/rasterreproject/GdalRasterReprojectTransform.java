@@ -6,9 +6,11 @@ import ch.so.agi.hop.gdal.raster.core.BoundsSpec;
 import ch.so.agi.hop.gdal.raster.core.CreationOptionParser;
 import ch.so.agi.hop.gdal.raster.core.DatasetRef;
 import ch.so.agi.hop.gdal.raster.core.RasterTransformResult;
+import ch.so.agi.hop.gdal.raster.core.RasterOutputOptionsSupport;
 import ch.so.agi.hop.gdal.raster.core.RasterTransformSupport;
 import ch.so.agi.hop.gdal.raster.core.RemoteAccessSpec;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import org.apache.hop.pipeline.Pipeline;
 import org.apache.hop.pipeline.PipelineMeta;
@@ -61,55 +63,56 @@ public class GdalRasterReprojectTransform
 
     List<String> args = new ArrayList<>();
     if (meta.getOutputFormat() != null && !meta.getOutputFormat().isBlank()) {
-      args.add("-of");
+      args.add("--output-format");
       args.add(resolveConstant(meta.getOutputFormat()));
     }
-    if (meta.isOverwrite()) {
-      args.add("-overwrite");
-    }
+    RasterOutputOptionsSupport.addRasterAlgorithmWriteModeArgs(args, meta.getOutputWriteMode());
     if (meta.getSourceCrs() != null && !meta.getSourceCrs().isBlank()) {
-      args.add("-s_srs");
+      args.add("--src-crs");
       args.add(resolveConstant(meta.getSourceCrs()));
     }
     if (meta.getTargetCrs() != null && !meta.getTargetCrs().isBlank()) {
-      args.add("-t_srs");
+      args.add("--dst-crs");
       args.add(resolveConstant(meta.getTargetCrs()));
     }
     if (meta.getBounds() != null && !meta.getBounds().isBlank()) {
-      args.addAll(BoundsSpec.parse(resolveConstant(meta.getBounds())).toWarpArgs());
+      args.add("--bbox");
+      args.add(BoundsSpec.parse(resolveConstant(meta.getBounds())).toCommaSeparated());
     }
     String sizingMode = resolveConstant(meta.getSizingMode()).trim().toUpperCase();
     if ("RESOLUTION".equals(sizingMode)) {
-      args.add("-tr");
-      args.add(resolveConstant(meta.getResolutionX()));
-      args.add(resolveConstant(meta.getResolutionY()));
+      args.add("--resolution");
+      args.add(resolveConstant(meta.getResolutionX()) + "," + resolveConstant(meta.getResolutionY()));
     } else if ("SIZE".equals(sizingMode)) {
-      args.add("-ts");
-      args.add(resolveConstant(meta.getWidth()));
-      args.add(resolveConstant(meta.getHeight()));
+      args.add("--size");
+      args.add(resolveConstant(meta.getWidth()) + "," + resolveConstant(meta.getHeight()));
     }
     if (meta.getResamplingMethod() != null && !meta.getResamplingMethod().isBlank()) {
-      args.add("-r");
+      args.add("--resampling");
       args.add(resolveConstant(meta.getResamplingMethod()));
     }
     if (meta.getSourceNoData() != null && !meta.getSourceNoData().isBlank()) {
-      args.add("-srcnodata");
+      args.add("--src-nodata");
       args.add(resolveConstant(meta.getSourceNoData()));
     }
     if (meta.getDestinationNoData() != null && !meta.getDestinationNoData().isBlank()) {
-      args.add("-dstnodata");
+      args.add("--dst-nodata");
       args.add(resolveConstant(meta.getDestinationNoData()));
     }
     if (meta.isTargetAlignedPixels()) {
-      args.add("-tap");
+      args.add("--target-aligned-pixels");
     }
-    for (String creationOption : CreationOptionParser.parse(resolveConstant(meta.getCreationOptions()))) {
-      args.add("-co");
-      args.add(creationOption);
+    LinkedHashMap<String, String> creationOptions = new LinkedHashMap<>();
+    RasterOutputOptionsSupport.applyCompressionPreset(
+        creationOptions, resolveConstant(meta.getCompressionPreset()));
+    creationOptions.putAll(CreationOptionParser.parseKeyValueMap(resolveConstant(meta.getCreationOptions())));
+    for (var entry : creationOptions.entrySet()) {
+      args.add("--creation-option");
+      args.add(entry.getKey() + "=" + entry.getValue());
     }
     args.addAll(AdditionalArgsParser.parse(resolveConstant(meta.getAdditionalReprojectArgs())));
 
-    gdalClient().warp(input, output, remoteAccess, args);
+    gdalClient().rasterReproject(input, output, remoteAccess, args);
     return RasterTransformResult.success(
         System.currentTimeMillis() - start, input.value(), output.value(), "{}");
   }

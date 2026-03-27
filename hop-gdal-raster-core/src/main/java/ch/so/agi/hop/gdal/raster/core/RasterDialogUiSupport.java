@@ -1,23 +1,29 @@
 package ch.so.agi.hop.gdal.raster.core;
 
-import org.apache.hop.ui.core.widget.TextVar;
+import java.util.List;
+import java.util.function.Supplier;
 import org.apache.hop.ui.core.PropsUi;
-import org.eclipse.swt.custom.ScrolledComposite;
+import org.apache.hop.ui.core.dialog.BaseDialog;
+import org.apache.hop.ui.core.gui.WindowProperty;
+import org.apache.hop.ui.core.widget.ComboVar;
+import org.apache.hop.ui.core.widget.TextVar;
 import org.eclipse.swt.SWT;
+import org.eclipse.swt.custom.ScrolledComposite;
 import org.eclipse.swt.graphics.Point;
+import org.eclipse.swt.graphics.Rectangle;
 import org.eclipse.swt.layout.FormAttachment;
 import org.eclipse.swt.layout.FormData;
 import org.eclipse.swt.layout.FormLayout;
 import org.eclipse.swt.widgets.Button;
 import org.eclipse.swt.widgets.Composite;
 import org.eclipse.swt.widgets.Control;
+import org.eclipse.swt.widgets.Display;
 import org.eclipse.swt.widgets.Label;
+import org.eclipse.swt.widgets.Monitor;
 import org.eclipse.swt.widgets.Shell;
 import org.eclipse.swt.widgets.TabFolder;
 import org.eclipse.swt.widgets.TabItem;
 import org.eclipse.swt.widgets.Text;
-
-import java.util.List;
 
 public final class RasterDialogUiSupport {
   private RasterDialogUiSupport() {}
@@ -134,15 +140,25 @@ public final class RasterDialogUiSupport {
       Control fieldControl,
       boolean constantMode,
       boolean browseEnabled) {
+    setValueModeState(constantControl, browseButton, fieldControl, true, constantMode, browseEnabled);
+  }
+
+  public static void setValueModeState(
+      Control constantControl,
+      Button browseButton,
+      Control fieldControl,
+      boolean active,
+      boolean constantMode,
+      boolean browseEnabled) {
     if (constantControl != null) {
       setControlEnabled(constantControl, true);
-      setTextEditable(constantControl, constantMode);
+      setTextEditable(constantControl, active && constantMode);
     }
     if (browseButton != null) {
-      setControlEnabled(browseButton, constantMode && browseEnabled);
+      setControlEnabled(browseButton, active && constantMode && browseEnabled);
     }
     if (fieldControl != null) {
-      setControlEnabled(fieldControl, !constantMode);
+      setControlEnabled(fieldControl, active && !constantMode);
     }
   }
 
@@ -161,6 +177,59 @@ public final class RasterDialogUiSupport {
     setTextEditable(bearerTokenControl, bearerToken);
     setTextEditable(headerNameControl, customHeader);
     setTextEditable(headerValueControl, customHeader);
+  }
+
+  public static void refreshCompressionPresetChoices(
+      ComboVar compressionPresetControl, String outputFormat, String requestedSelection) {
+    if (compressionPresetControl == null || compressionPresetControl.isDisposed()) {
+      return;
+    }
+
+    java.util.List<String> choices = new java.util.ArrayList<>();
+    choices.add(RasterOutputOptionsSupport.COMPRESSION_DEFAULT);
+    choices.addAll(RasterFormatCatalog.compressionOptions(outputFormat));
+    compressionPresetControl.setItems(choices.toArray(String[]::new));
+
+    String selected = requestedSelection;
+    if (selected == null || selected.isBlank()) {
+      selected = compressionPresetControl.getText();
+    }
+
+    boolean supported = false;
+    if (selected != null && !selected.isBlank()) {
+      for (String choice : choices) {
+        if (choice.equalsIgnoreCase(selected)) {
+          supported = true;
+          break;
+        }
+      }
+    }
+    if (!supported) {
+      selected = RasterOutputOptionsSupport.COMPRESSION_DEFAULT;
+    }
+    compressionPresetControl.setText(selected);
+  }
+
+  public static void openManagedDialog(
+      Shell shell,
+      String stateKey,
+      int minWidth,
+      int minHeight,
+      Runnable okAction,
+      Supplier<Boolean> cancelSupplier) {
+    shell.addListener(SWT.Close, e -> e.doit = cancelSupplier.get());
+    shell.addListener(SWT.Dispose, e -> saveWindowState(shell, stateKey));
+    BaseDialog.addDefaultListeners(shell, c -> okAction.run());
+    BaseDialog.addSpacesOnTabs(shell);
+    applyWindowState(shell, stateKey, minWidth, minHeight);
+
+    shell.open();
+    Display display = shell.getDisplay();
+    while (!shell.isDisposed()) {
+      if (!display.readAndDispatch()) {
+        display.sleep();
+      }
+    }
   }
 
   public static TabSection createTabSection(TabFolder folder, String title) {
@@ -219,6 +288,53 @@ public final class RasterDialogUiSupport {
     Point size =
         section.content().computeSize(widthHint > 0 ? widthHint : SWT.DEFAULT, SWT.DEFAULT, true);
     section.scroller().setMinSize(size);
+  }
+
+  private static void applyWindowState(Shell shell, String stateKey, int minWidth, int minHeight) {
+    PropsUi props = PropsUi.getInstance();
+    WindowProperty windowProperty = props.getScreen(stateKey);
+    if (windowProperty != null) {
+      windowProperty.setShell(shell, minWidth, minHeight);
+      return;
+    }
+
+    shell.layout(true, true);
+    Rectangle bounds = shell.getBounds();
+    windowProperty =
+        new WindowProperty(
+            stateKey,
+            shell.getMaximized(),
+            bounds.x,
+            bounds.y,
+            bounds.width,
+            bounds.height);
+    windowProperty.setShell(shell, minWidth, minHeight);
+
+    Rectangle shellBounds = shell.getBounds();
+    Monitor monitor = shell.getDisplay().getPrimaryMonitor();
+    if (shell.getParent() != null) {
+      monitor = shell.getParent().getMonitor();
+    }
+    Rectangle clientArea = monitor.getClientArea();
+    int middleX = clientArea.x + (clientArea.width - shellBounds.width) / 2;
+    int middleY = clientArea.y + (clientArea.height - shellBounds.height) / 2;
+    shell.setLocation(middleX, middleY);
+  }
+
+  private static void saveWindowState(Shell shell, String stateKey) {
+    if (shell == null) {
+      return;
+    }
+    Rectangle bounds = shell.getBounds();
+    PropsUi.getInstance()
+        .setScreen(
+            new WindowProperty(
+                stateKey,
+                shell.getMaximized(),
+                bounds.x,
+                bounds.y,
+                bounds.width,
+                bounds.height));
   }
 
   public record TabSection(TabItem item, ScrolledComposite scroller, Composite content) {}

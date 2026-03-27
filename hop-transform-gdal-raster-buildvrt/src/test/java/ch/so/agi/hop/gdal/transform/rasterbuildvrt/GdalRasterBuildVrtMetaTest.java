@@ -15,13 +15,26 @@ class GdalRasterBuildVrtMetaTest {
     GdalRasterBuildVrtMeta meta = new GdalRasterBuildVrtMeta();
     meta.setDefault();
 
+    assertEquals("EXPLICIT_LIST", meta.getInputCollectionMode());
     assertEquals("LOCAL_FILE", meta.getInputInterpretationMode());
     assertEquals("CONSTANT", meta.getInputListValueMode());
+    assertEquals("CONSTANT", meta.getDirectoryParameterSource());
+    assertEquals("*.tif", meta.getGlobPattern());
     assertEquals("LOCAL_FILE", meta.getOutputSourceMode());
+    assertEquals("FAIL_IF_EXISTS", meta.getOutputWriteMode());
     assertEquals("AVERAGE", meta.getResolutionStrategy());
     assertTrue(meta.isFailOnError());
     assertTrue(meta.isAddResultFields());
     assertFalse(meta.isSeparateBands());
+  }
+
+  @Test
+  void outputWriteModeKeepsAppend() {
+    GdalRasterBuildVrtMeta meta = new GdalRasterBuildVrtMeta();
+    meta.setDefault();
+    meta.setOutputWriteMode("append");
+
+    assertEquals("APPEND", meta.getOutputWriteMode());
   }
 
   @Test
@@ -35,6 +48,21 @@ class GdalRasterBuildVrtMetaTest {
 
     assertFalse(remarks.isEmpty());
     assertEquals(ICheckResult.TYPE_RESULT_ERROR, remarks.getFirst().getType());
+  }
+
+  @Test
+  void checkShouldRejectMissingInputDirectoryForDirectoryGlob() {
+    GdalRasterBuildVrtMeta meta = new GdalRasterBuildVrtMeta();
+    meta.setDefault();
+    meta.setInputCollectionMode("DIRECTORY_GLOB");
+    meta.setOutputValue("/tmp/out.vrt");
+
+    List<ICheckResult> remarks = new ArrayList<>();
+    meta.check(remarks, null, null, null, null, null, null, null, null);
+
+    assertFalse(remarks.isEmpty());
+    assertEquals(ICheckResult.TYPE_RESULT_ERROR, remarks.getFirst().getType());
+    assertEquals("Input directory is required", remarks.getFirst().getText());
   }
 
   @Test

@@ -7,6 +7,7 @@ import ch.so.agi.hop.gdal.raster.core.CreationOptionParser;
 import ch.so.agi.hop.gdal.raster.core.DatasetRef;
 import ch.so.agi.hop.gdal.raster.core.HopGeometrySupport;
 import ch.so.agi.hop.gdal.raster.core.RasterTransformResult;
+import ch.so.agi.hop.gdal.raster.core.RasterOutputOptionsSupport;
 import ch.so.agi.hop.gdal.raster.core.RasterTransformSupport;
 import ch.so.agi.hop.gdal.raster.core.RemoteAccessSpec;
 import ch.so.agi.hop.gdal.raster.core.VsiVectorDatasetSupport;
@@ -61,56 +62,58 @@ public class GdalRasterizeVectorTransform
     List<String> args = new ArrayList<>();
 
     if (input.layerName() != null && !input.layerName().isBlank()) {
-      args.add("-l");
+      args.add("--input-layer");
       args.add(input.layerName());
     }
     if ("ATTRIBUTE_FIELD".equalsIgnoreCase(meta.getBurnStrategy())) {
-      args.add("-a");
+      args.add("--attribute-name");
       args.add(input.burnAttributeName());
     } else {
-      args.add("-burn");
+      args.add("--burn");
       args.add(resolveConstant(meta.getBurnValue()));
     }
 
     BoundsSpec bounds = BoundsSpec.parse(resolveConstant(meta.getBounds()));
     if (bounds != null) {
-      args.add("-te");
-      args.add(Double.toString(bounds.minX()));
-      args.add(Double.toString(bounds.minY()));
-      args.add(Double.toString(bounds.maxX()));
-      args.add(Double.toString(bounds.maxY()));
+      args.add("--extent");
+      args.add(bounds.toCommaSeparated());
     }
     if (meta.getCrs() != null && !meta.getCrs().isBlank()) {
-      args.add("-a_srs");
+      args.add("--crs");
       args.add(resolveConstant(meta.getCrs()));
     }
     appendGridArgs(args);
     if (meta.getOutputDataType() != null && !meta.getOutputDataType().isBlank()) {
-      args.add("-ot");
+      args.add("--output-data-type");
       args.add(resolveConstant(meta.getOutputDataType()));
     }
     if (meta.getInitValue() != null && !meta.getInitValue().isBlank()) {
-      args.add("-init");
+      args.add("--init");
       args.add(resolveConstant(meta.getInitValue()));
     }
     if (meta.getNoDataValue() != null && !meta.getNoDataValue().isBlank()) {
-      args.add("-a_nodata");
+      args.add("--nodata");
       args.add(resolveConstant(meta.getNoDataValue()));
     }
     if (meta.isAllTouched()) {
-      args.add("-at");
+      args.add("--all-touched");
     }
     if (meta.getOutputFormat() != null && !meta.getOutputFormat().isBlank()) {
-      args.add("-of");
+      args.add("--output-format");
       args.add(resolveConstant(meta.getOutputFormat()));
     }
-    for (String creationOption : CreationOptionParser.parse(resolveConstant(meta.getCreationOptions()))) {
-      args.add("-co");
-      args.add(creationOption);
+    RasterOutputOptionsSupport.addVectorRasterizeWriteModeArgs(args, meta.getOutputWriteMode());
+    LinkedHashMap<String, String> creationOptions = new LinkedHashMap<>();
+    RasterOutputOptionsSupport.applyCompressionPreset(
+        creationOptions, resolveConstant(meta.getCompressionPreset()));
+    creationOptions.putAll(CreationOptionParser.parseKeyValueMap(resolveConstant(meta.getCreationOptions())));
+    for (var entry : creationOptions.entrySet()) {
+      args.add("--creation-option");
+      args.add(entry.getKey() + "=" + entry.getValue());
     }
     args.addAll(AdditionalArgsParser.parse(resolveConstant(meta.getAdditionalArgs())));
 
-    gdalClient().rasterize(input.datasetRef(), output, remoteAccess, args);
+    gdalClient().vectorRasterize(input.datasetRef(), output, remoteAccess, args);
     return RasterTransformResult.success(
         System.currentTimeMillis() - start, input.datasetRef().value(), output.value(), "{}");
   }
@@ -168,17 +171,15 @@ public class GdalRasterizeVectorTransform
     if ("BOUNDS_SIZE".equalsIgnoreCase(meta.getGridMode())) {
       requireValue(meta.getWidth(), "Width");
       requireValue(meta.getHeight(), "Height");
-      args.add("-ts");
-      args.add(resolveConstant(meta.getWidth()));
-      args.add(resolveConstant(meta.getHeight()));
+      args.add("--size");
+      args.add(resolveConstant(meta.getWidth()) + "," + resolveConstant(meta.getHeight()));
       return;
     }
 
     requireValue(meta.getResolutionX(), "Resolution X");
     requireValue(meta.getResolutionY(), "Resolution Y");
-    args.add("-tr");
-    args.add(resolveConstant(meta.getResolutionX()));
-    args.add(resolveConstant(meta.getResolutionY()));
+    args.add("--resolution");
+    args.add(resolveConstant(meta.getResolutionX()) + "," + resolveConstant(meta.getResolutionY()));
   }
 
   private static void requireValue(String value, String label) {

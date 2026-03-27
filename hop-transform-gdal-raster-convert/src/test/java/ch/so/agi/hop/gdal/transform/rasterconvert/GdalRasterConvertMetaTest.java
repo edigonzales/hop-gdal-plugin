@@ -22,7 +22,7 @@ class GdalRasterConvertMetaTest {
   }
 
   @Test
-  void setOutputWriteModeNormalizesValues() {
+  void setOutputWriteModeKeepsSupportedValues() {
     GdalRasterConvertMeta meta = new GdalRasterConvertMeta();
     meta.setDefault();
 
@@ -31,9 +31,22 @@ class GdalRasterConvertMetaTest {
 
     meta.setOutputWriteMode("append");
     assertEquals("APPEND", meta.getOutputWriteMode());
+  }
 
+  @Test
+  void checkShouldRejectUnsupportedWriteMode() {
+    GdalRasterConvertMeta meta = new GdalRasterConvertMeta();
+    meta.setDefault();
+    meta.setInputValue("/tmp/in.tif");
+    meta.setOutputValue("/tmp/out.tif");
     meta.setOutputWriteMode("unsupported");
-    assertEquals("FAIL_IF_EXISTS", meta.getOutputWriteMode());
+
+    List<ICheckResult> remarks = new ArrayList<>();
+    meta.check(remarks, null, null, null, null, null, null, null, null);
+
+    assertFalse(remarks.isEmpty());
+    assertEquals(ICheckResult.TYPE_RESULT_ERROR, remarks.getFirst().getType());
+    assertEquals("Raster convert write mode is not supported: unsupported", remarks.getFirst().getText());
   }
 
   @Test

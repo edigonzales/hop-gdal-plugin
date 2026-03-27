@@ -1,11 +1,13 @@
 package ch.so.agi.hop.gdal.transform.rasterizevector;
 
 import ch.so.agi.hop.gdal.raster.core.RasterDialogUiSupport;
+import ch.so.agi.hop.gdal.raster.core.RasterFormatCatalog;
+import ch.so.agi.hop.gdal.raster.core.RasterOutputOptionsSupport;
+import java.util.List;
 import org.apache.hop.core.util.Utils;
 import org.apache.hop.core.variables.IVariables;
 import org.apache.hop.pipeline.PipelineMeta;
 import org.apache.hop.ui.core.PropsUi;
-import org.apache.hop.ui.core.dialog.BaseDialog;
 import org.apache.hop.ui.core.widget.ComboVar;
 import org.apache.hop.ui.core.widget.TextVar;
 import org.apache.hop.ui.pipeline.transform.BaseTransformDialog;
@@ -21,9 +23,9 @@ import org.eclipse.swt.widgets.Shell;
 import org.eclipse.swt.widgets.TabFolder;
 import org.eclipse.swt.widgets.Text;
 
-import java.util.List;
-
 public class GdalRasterizeVectorDialog extends BaseTransformDialog {
+  private static final String WINDOW_STATE_KEY = "hop-gdal-rasterize-vector-dialog-v2";
+
   private final GdalRasterizeVectorMeta input;
   private ComboVar wVectorInputMode;
   private ComboVar wInputSourceMode;
@@ -41,7 +43,9 @@ public class GdalRasterizeVectorDialog extends BaseTransformDialog {
   private TextVar wOutputValue;
   private Button wbOutput;
   private ComboVar wOutputField;
-  private TextVar wOutputFormat;
+  private ComboVar wOutputFormat;
+  private ComboVar wCompressionPreset;
+  private ComboVar wWriteMode;
   private ComboVar wGridMode;
   private TextVar wBounds;
   private TextVar wCrs;
@@ -77,7 +81,7 @@ public class GdalRasterizeVectorDialog extends BaseTransformDialog {
   public String open() {
     Shell parentShell = getParent();
     shell = new Shell(parentShell, SWT.DIALOG_TRIM | SWT.RESIZE | SWT.MIN | SWT.MAX);
-    shell.setMinimumSize(960, 780);
+    shell.setMinimumSize(920, 780);
     PropsUi.setLook(shell);
     setShellImage(shell, input);
     shell.setText("Rasterize Vector");
@@ -122,16 +126,18 @@ public class GdalRasterizeVectorDialog extends BaseTransformDialog {
 
     int middle = props.getMiddlePct();
     RasterDialogUiSupport.TabSection inputTab = RasterDialogUiSupport.createTabSection(wTabFolder, "Input");
-    RasterDialogUiSupport.TabSection outputTab =
-        RasterDialogUiSupport.createTabSection(wTabFolder, "Output & Rasterization");
+    RasterDialogUiSupport.TabSection outputTab = RasterDialogUiSupport.createTabSection(wTabFolder, "Output");
+    RasterDialogUiSupport.TabSection rasterizeTab =
+        RasterDialogUiSupport.createTabSection(wTabFolder, "Rasterize options");
     RasterDialogUiSupport.TabSection remoteTab =
         RasterDialogUiSupport.createTabSection(wTabFolder, "Remote access");
     RasterDialogUiSupport.TabSection advancedTab =
         RasterDialogUiSupport.createTabSection(wTabFolder, "Advanced");
-    tabSections = List.of(inputTab, outputTab, remoteTab, advancedTab);
+    tabSections = List.of(inputTab, outputTab, rasterizeTab, remoteTab, advancedTab);
 
     buildInputTab(inputTab.content(), middle, margin);
     buildOutputTab(outputTab.content(), middle, margin);
+    buildRasterizeTab(rasterizeTab.content(), middle, margin);
     buildRemoteTab(remoteTab.content(), middle, margin);
     buildAdvancedTab(advancedTab.content(), middle, margin);
 
@@ -145,6 +151,12 @@ public class GdalRasterizeVectorDialog extends BaseTransformDialog {
     wBurnStrategy.addModifyListener(e -> refreshEnabledStates());
     wOutputSourceMode.addModifyListener(e -> refreshEnabledStates());
     wOutputValueMode.addModifyListener(e -> refreshEnabledStates());
+    wOutputFormat.addModifyListener(
+        e -> {
+          RasterDialogUiSupport.refreshCompressionPresetChoices(
+              wCompressionPreset, wOutputFormat.getText(), wCompressionPreset.getText());
+          refreshEnabledStates();
+        });
     wGridMode.addModifyListener(e -> refreshEnabledStates());
     wAuthType.addModifyListener(e -> refreshEnabledStates());
     wTabFolder.addListener(SWT.Selection, e -> refreshTabLayouts());
@@ -156,7 +168,11 @@ public class GdalRasterizeVectorDialog extends BaseTransformDialog {
     wOk.addListener(SWT.Selection, e -> ok());
     wCancel.addListener(SWT.Selection, e -> cancel());
 
-    BaseDialog.defaultShellHandling(shell, c -> ok(), c -> cancel());
+    RasterDialogUiSupport.openManagedDialog(
+        shell, WINDOW_STATE_KEY, 920, 780, this::ok, () -> {
+          cancel();
+          return true;
+        });
     return transformName;
   }
 
@@ -169,6 +185,10 @@ public class GdalRasterizeVectorDialog extends BaseTransformDialog {
     wBurnStrategy.setItems(new String[] {"CONSTANT_VALUE", "ATTRIBUTE_FIELD"});
     wOutputSourceMode.setItems(outputModes);
     wOutputValueMode.setItems(new String[] {"CONSTANT", "FIELD"});
+    wOutputFormat.setItems(RasterFormatCatalog.outputFormats().toArray(String[]::new));
+    RasterDialogUiSupport.refreshCompressionPresetChoices(
+        wCompressionPreset, wOutputFormat.getText(), RasterOutputOptionsSupport.COMPRESSION_DEFAULT);
+    wWriteMode.setItems(RasterOutputOptionsSupport.vectorRasterizeWriteModes());
     wGridMode.setItems(new String[] {"BOUNDS_RESOLUTION", "BOUNDS_SIZE"});
     wAuthType.setItems(new String[] {"NONE", "BASIC_AUTH", "BEARER_TOKEN", "SIGNED_URL", "CUSTOM_HEADER"});
   }
@@ -196,6 +216,16 @@ public class GdalRasterizeVectorDialog extends BaseTransformDialog {
     wOutputValue.setText(Utils.isEmpty(input.getOutputValue()) ? "" : input.getOutputValue());
     wOutputField.setText(Utils.isEmpty(input.getOutputField()) ? "" : input.getOutputField());
     wOutputFormat.setText(Utils.isEmpty(input.getOutputFormat()) ? "GTiff" : input.getOutputFormat());
+    RasterDialogUiSupport.refreshCompressionPresetChoices(
+        wCompressionPreset,
+        wOutputFormat.getText(),
+        Utils.isEmpty(input.getCompressionPreset())
+            ? RasterOutputOptionsSupport.COMPRESSION_DEFAULT
+            : input.getCompressionPreset());
+    wWriteMode.setText(
+        Utils.isEmpty(input.getOutputWriteMode())
+            ? RasterOutputOptionsSupport.WRITE_MODE_FAIL_IF_EXISTS
+            : input.getOutputWriteMode());
     wGridMode.setText(Utils.isEmpty(input.getGridMode()) ? "BOUNDS_RESOLUTION" : input.getGridMode());
     wBounds.setText(Utils.isEmpty(input.getBounds()) ? "" : input.getBounds());
     wCrs.setText(Utils.isEmpty(input.getCrs()) ? "" : input.getCrs());
@@ -293,33 +323,6 @@ public class GdalRasterizeVectorDialog extends BaseTransformDialog {
         row(
             content,
             last,
-            "Burn strategy",
-            middle,
-            margin,
-            w -> wBurnStrategy = (ComboVar) w,
-            parent -> new ComboVar(variables, parent, SWT.SINGLE | SWT.LEFT | SWT.BORDER));
-    last =
-        row(
-            content,
-            last,
-            "Burn value",
-            middle,
-            margin,
-            w -> wBurnValue = (TextVar) w,
-            parent -> new TextVar(variables, parent, SWT.SINGLE | SWT.LEFT | SWT.BORDER));
-    last =
-        row(
-            content,
-            last,
-            "Burn attribute field",
-            middle,
-            margin,
-            w -> wBurnField = (ComboVar) w,
-            parent -> new ComboVar(variables, parent, SWT.SINGLE | SWT.LEFT | SWT.BORDER));
-    last =
-        row(
-            content,
-            last,
             "Output source mode",
             middle,
             margin,
@@ -360,8 +363,57 @@ public class GdalRasterizeVectorDialog extends BaseTransformDialog {
             "Output format",
             middle,
             margin,
-            w -> wOutputFormat = (TextVar) w,
+            w -> wOutputFormat = (ComboVar) w,
+            parent -> new ComboVar(variables, parent, SWT.SINGLE | SWT.LEFT | SWT.BORDER));
+    last =
+        row(
+            content,
+            last,
+            "Compression preset",
+            middle,
+            margin,
+            w -> wCompressionPreset = (ComboVar) w,
+            parent -> new ComboVar(variables, parent, SWT.SINGLE | SWT.LEFT | SWT.BORDER));
+    last =
+        row(
+            content,
+            last,
+            "Write mode",
+            middle,
+            margin,
+            w -> wWriteMode = (ComboVar) w,
+            parent -> new ComboVar(variables, parent, SWT.SINGLE | SWT.LEFT | SWT.BORDER));
+  }
+
+  private void buildRasterizeTab(Composite content, int middle, int margin) {
+    Composite last = null;
+    last =
+        row(
+            content,
+            last,
+            "Burn strategy",
+            middle,
+            margin,
+            w -> wBurnStrategy = (ComboVar) w,
+            parent -> new ComboVar(variables, parent, SWT.SINGLE | SWT.LEFT | SWT.BORDER));
+    last =
+        row(
+            content,
+            last,
+            "Burn value",
+            middle,
+            margin,
+            w -> wBurnValue = (TextVar) w,
             parent -> new TextVar(variables, parent, SWT.SINGLE | SWT.LEFT | SWT.BORDER));
+    last =
+        row(
+            content,
+            last,
+            "Burn attribute field",
+            middle,
+            margin,
+            w -> wBurnField = (ComboVar) w,
+            parent -> new ComboVar(variables, parent, SWT.SINGLE | SWT.LEFT | SWT.BORDER));
     last =
         row(
             content,
@@ -456,10 +508,10 @@ public class GdalRasterizeVectorDialog extends BaseTransformDialog {
         content,
         last,
         "All touched",
-        middle,
-        margin,
-        w -> wAllTouched = (Button) w,
-        parent -> new Button(parent, SWT.CHECK));
+            middle,
+            margin,
+            w -> wAllTouched = (Button) w,
+            parent -> new Button(parent, SWT.CHECK));
   }
 
   private void buildRemoteTab(Composite content, int middle, int margin) {
@@ -593,6 +645,7 @@ public class GdalRasterizeVectorDialog extends BaseTransformDialog {
 
     RasterDialogUiSupport.setValueModeState(
         wOutputValue, wbOutput, wOutputField, constantOutput, localOutput);
+    RasterDialogUiSupport.setControlEnabled(wCompressionPreset, wCompressionPreset.getItemCount() > 1);
 
     RasterDialogUiSupport.setTextEditable(wResolutionX, resolutionGrid);
     RasterDialogUiSupport.setTextEditable(wResolutionY, resolutionGrid);
@@ -626,6 +679,8 @@ public class GdalRasterizeVectorDialog extends BaseTransformDialog {
     input.setOutputValue(wOutputValue.getText());
     input.setOutputField(wOutputField.getText());
     input.setOutputFormat(wOutputFormat.getText());
+    input.setCompressionPreset(wCompressionPreset.getText());
+    input.setOutputWriteMode(wWriteMode.getText());
     input.setGridMode(wGridMode.getText());
     input.setBounds(wBounds.getText());
     input.setCrs(wCrs.getText());

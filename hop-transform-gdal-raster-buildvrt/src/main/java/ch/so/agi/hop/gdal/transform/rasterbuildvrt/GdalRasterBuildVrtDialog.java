@@ -1,11 +1,11 @@
 package ch.so.agi.hop.gdal.transform.rasterbuildvrt;
 
 import ch.so.agi.hop.gdal.raster.core.RasterDialogUiSupport;
+import ch.so.agi.hop.gdal.raster.core.RasterOutputOptionsSupport;
 import org.apache.hop.core.util.Utils;
 import org.apache.hop.core.variables.IVariables;
 import org.apache.hop.pipeline.PipelineMeta;
 import org.apache.hop.ui.core.PropsUi;
-import org.apache.hop.ui.core.dialog.BaseDialog;
 import org.apache.hop.ui.core.widget.ComboVar;
 import org.apache.hop.ui.core.widget.TextVar;
 import org.apache.hop.ui.pipeline.transform.BaseTransformDialog;
@@ -15,6 +15,7 @@ import org.eclipse.swt.layout.FormData;
 import org.eclipse.swt.layout.FormLayout;
 import org.eclipse.swt.widgets.Button;
 import org.eclipse.swt.widgets.Composite;
+import org.eclipse.swt.widgets.DirectoryDialog;
 import org.eclipse.swt.widgets.FileDialog;
 import org.eclipse.swt.widgets.Label;
 import org.eclipse.swt.widgets.Shell;
@@ -24,17 +25,26 @@ import org.eclipse.swt.widgets.Text;
 import java.util.List;
 
 public class GdalRasterBuildVrtDialog extends BaseTransformDialog {
+  private static final String WINDOW_STATE_KEY = "hop-gdal-raster-mosaic-dialog-v2";
+
+  private ComboVar wInputCollectionMode;
   private final GdalRasterBuildVrtMeta input;
   private ComboVar wInputInterpretationMode;
   private ComboVar wInputListValueMode;
   private TextVar wInputListValue;
   private Button wbInputList;
   private ComboVar wInputListField;
+  private ComboVar wDirectoryValueMode;
+  private TextVar wInputDirectory;
+  private Button wbInputDirectory;
+  private ComboVar wDirectoryField;
+  private TextVar wGlobPattern;
   private ComboVar wOutputSourceMode;
   private ComboVar wOutputValueMode;
   private TextVar wOutputValue;
   private Button wbOutput;
   private ComboVar wOutputField;
+  private ComboVar wWriteMode;
   private ComboVar wAuthType;
   private TextVar wAuthUsername;
   private TextVar wAuthPassword;
@@ -64,7 +74,7 @@ public class GdalRasterBuildVrtDialog extends BaseTransformDialog {
   public String open() {
     Shell parentShell = getParent();
     shell = new Shell(parentShell, SWT.DIALOG_TRIM | SWT.RESIZE | SWT.MIN | SWT.MAX);
-    shell.setMinimumSize(980, 860);
+    shell.setMinimumSize(880, 720);
     PropsUi.setLook(shell);
     setShellImage(shell, input);
     shell.setText("Raster Mosaic");
@@ -109,16 +119,18 @@ public class GdalRasterBuildVrtDialog extends BaseTransformDialog {
 
     int middle = props.getMiddlePct();
     RasterDialogUiSupport.TabSection inputTab = RasterDialogUiSupport.createTabSection(wTabFolder, "Input");
-    RasterDialogUiSupport.TabSection outputTab =
-        RasterDialogUiSupport.createTabSection(wTabFolder, "Output & Mosaic options");
+    RasterDialogUiSupport.TabSection outputTab = RasterDialogUiSupport.createTabSection(wTabFolder, "Output");
+    RasterDialogUiSupport.TabSection mosaicTab =
+        RasterDialogUiSupport.createTabSection(wTabFolder, "Mosaic options");
     RasterDialogUiSupport.TabSection remoteTab =
         RasterDialogUiSupport.createTabSection(wTabFolder, "Remote access");
     RasterDialogUiSupport.TabSection advancedTab =
         RasterDialogUiSupport.createTabSection(wTabFolder, "Advanced");
-    tabSections = List.of(inputTab, outputTab, remoteTab, advancedTab);
+    tabSections = List.of(inputTab, outputTab, mosaicTab, remoteTab, advancedTab);
 
     buildInputTab(inputTab.content(), middle, margin);
     buildOutputTab(outputTab.content(), middle, margin);
+    buildMosaicTab(mosaicTab.content(), middle, margin);
     buildRemoteTab(remoteTab.content(), middle, margin);
     buildAdvancedTab(advancedTab.content(), middle, margin);
 
@@ -126,8 +138,10 @@ public class GdalRasterBuildVrtDialog extends BaseTransformDialog {
     loadFields();
     getData();
 
+    wInputCollectionMode.addModifyListener(e -> refreshEnabledStates());
     wInputInterpretationMode.addModifyListener(e -> refreshEnabledStates());
     wInputListValueMode.addModifyListener(e -> refreshEnabledStates());
+    wDirectoryValueMode.addModifyListener(e -> refreshEnabledStates());
     wOutputSourceMode.addModifyListener(e -> refreshEnabledStates());
     wOutputValueMode.addModifyListener(e -> refreshEnabledStates());
     wAuthType.addModifyListener(e -> refreshEnabledStates());
@@ -136,41 +150,61 @@ public class GdalRasterBuildVrtDialog extends BaseTransformDialog {
     refreshEnabledStates();
 
     wbInputList.addListener(SWT.Selection, e -> browseInputList());
+    wbInputDirectory.addListener(SWT.Selection, e -> browseInputDirectory());
     wbOutput.addListener(SWT.Selection, e -> browseOutput());
     wOk.addListener(SWT.Selection, e -> ok());
     wCancel.addListener(SWT.Selection, e -> cancel());
 
-    BaseDialog.defaultShellHandling(shell, c -> ok(), c -> cancel());
+    RasterDialogUiSupport.openManagedDialog(
+        shell, WINDOW_STATE_KEY, 880, 720, this::ok, () -> {
+          cancel();
+          return true;
+        });
     return transformName;
   }
 
   private void populateCombos() {
     String[] inputModes = {"LOCAL_FILE", "HTTP_URL", "GDAL_VSI"};
     String[] outputModes = {"LOCAL_FILE", "GDAL_VSI"};
+    wInputCollectionMode.setItems(new String[] {"EXPLICIT_LIST", "DIRECTORY_GLOB"});
     wInputInterpretationMode.setItems(inputModes);
     wOutputSourceMode.setItems(outputModes);
     wInputListValueMode.setItems(new String[] {"CONSTANT", "FIELD"});
+    wDirectoryValueMode.setItems(new String[] {"CONSTANT", "FIELD"});
     wOutputValueMode.setItems(new String[] {"CONSTANT", "FIELD"});
+    wWriteMode.setItems(RasterOutputOptionsSupport.rasterAlgorithmWriteModes());
     wAuthType.setItems(new String[] {"NONE", "BASIC_AUTH", "BEARER_TOKEN", "SIGNED_URL", "CUSTOM_HEADER"});
     wResolutionStrategy.setItems(new String[] {"AVERAGE", "HIGHEST", "LOWEST"});
   }
 
   private void loadFields() {
     BaseTransformDialog.getFieldsFromPrevious(variables, wInputListField, pipelineMeta, transformMeta);
+    BaseTransformDialog.getFieldsFromPrevious(variables, wDirectoryField, pipelineMeta, transformMeta);
     BaseTransformDialog.getFieldsFromPrevious(variables, wOutputField, pipelineMeta, transformMeta);
   }
 
   private void getData() {
+    wInputCollectionMode.setText(
+        Utils.isEmpty(input.getInputCollectionMode()) ? "EXPLICIT_LIST" : input.getInputCollectionMode());
     wInputInterpretationMode.setText(
         Utils.isEmpty(input.getInputInterpretationMode()) ? "LOCAL_FILE" : input.getInputInterpretationMode());
     wInputListValueMode.setText(
         Utils.isEmpty(input.getInputListValueMode()) ? "CONSTANT" : input.getInputListValueMode());
     wInputListValue.setText(Utils.isEmpty(input.getInputListValue()) ? "" : input.getInputListValue());
     wInputListField.setText(Utils.isEmpty(input.getInputListField()) ? "" : input.getInputListField());
+    wDirectoryValueMode.setText(
+        Utils.isEmpty(input.getDirectoryParameterSource()) ? "CONSTANT" : input.getDirectoryParameterSource());
+    wInputDirectory.setText(Utils.isEmpty(input.getInputDirectory()) ? "" : input.getInputDirectory());
+    wDirectoryField.setText(Utils.isEmpty(input.getDirectoryField()) ? "" : input.getDirectoryField());
+    wGlobPattern.setText(Utils.isEmpty(input.getGlobPattern()) ? "*.tif" : input.getGlobPattern());
     wOutputSourceMode.setText(Utils.isEmpty(input.getOutputSourceMode()) ? "LOCAL_FILE" : input.getOutputSourceMode());
     wOutputValueMode.setText(Utils.isEmpty(input.getOutputValueMode()) ? "CONSTANT" : input.getOutputValueMode());
     wOutputValue.setText(Utils.isEmpty(input.getOutputValue()) ? "" : input.getOutputValue());
     wOutputField.setText(Utils.isEmpty(input.getOutputField()) ? "" : input.getOutputField());
+    wWriteMode.setText(
+        Utils.isEmpty(input.getOutputWriteMode())
+            ? RasterOutputOptionsSupport.WRITE_MODE_FAIL_IF_EXISTS
+            : input.getOutputWriteMode());
     wAuthType.setText(Utils.isEmpty(input.getAuthType()) ? "NONE" : input.getAuthType());
     wAuthUsername.setText(Utils.isEmpty(input.getAuthUsername()) ? "" : input.getAuthUsername());
     wAuthPassword.setText(Utils.isEmpty(input.getAuthPassword()) ? "" : input.getAuthPassword());
@@ -192,6 +226,15 @@ public class GdalRasterBuildVrtDialog extends BaseTransformDialog {
 
   private void buildInputTab(Composite content, int middle, int margin) {
     Composite last = null;
+    last =
+        row(
+            content,
+            last,
+            "Input collection mode",
+            middle,
+            margin,
+            w -> wInputCollectionMode = (ComboVar) w,
+            parent -> new ComboVar(variables, parent, SWT.SINGLE | SWT.LEFT | SWT.BORDER));
     last =
         row(
             content,
@@ -220,14 +263,51 @@ public class GdalRasterBuildVrtDialog extends BaseTransformDialog {
             w -> wInputListValue = (TextVar) w,
             b -> wbInputList = b,
             parent -> new TextVar(variables, parent, SWT.SINGLE | SWT.LEFT | SWT.BORDER));
+    last =
+        row(
+            content,
+            last,
+            "Input list field",
+            middle,
+            margin,
+            w -> wInputListField = (ComboVar) w,
+            parent -> new ComboVar(variables, parent, SWT.SINGLE | SWT.LEFT | SWT.BORDER));
+    last =
+        row(
+            content,
+            last,
+            "Directory parameter source",
+            middle,
+            margin,
+            w -> wDirectoryValueMode = (ComboVar) w,
+            parent -> new ComboVar(variables, parent, SWT.SINGLE | SWT.LEFT | SWT.BORDER));
+    last =
+        rowWithButton(
+            content,
+            last,
+            "Input directory",
+            middle,
+            margin,
+            w -> wInputDirectory = (TextVar) w,
+            b -> wbInputDirectory = b,
+            parent -> new TextVar(variables, parent, SWT.SINGLE | SWT.LEFT | SWT.BORDER));
+    last =
+        row(
+            content,
+            last,
+            "Directory field",
+            middle,
+            margin,
+            w -> wDirectoryField = (ComboVar) w,
+            parent -> new ComboVar(variables, parent, SWT.SINGLE | SWT.LEFT | SWT.BORDER));
     row(
         content,
         last,
-        "Input list field",
+        "Glob pattern",
         middle,
         margin,
-        w -> wInputListField = (ComboVar) w,
-        parent -> new ComboVar(variables, parent, SWT.SINGLE | SWT.LEFT | SWT.BORDER));
+        w -> wGlobPattern = (TextVar) w,
+        parent -> new TextVar(variables, parent, SWT.SINGLE | SWT.LEFT | SWT.BORDER));
   }
 
   private void buildOutputTab(Composite content, int middle, int margin) {
@@ -269,6 +349,19 @@ public class GdalRasterBuildVrtDialog extends BaseTransformDialog {
             margin,
             w -> wOutputField = (ComboVar) w,
             parent -> new ComboVar(variables, parent, SWT.SINGLE | SWT.LEFT | SWT.BORDER));
+    last =
+        row(
+            content,
+            last,
+            "Write mode",
+            middle,
+            margin,
+            w -> wWriteMode = (ComboVar) w,
+            parent -> new ComboVar(variables, parent, SWT.SINGLE | SWT.LEFT | SWT.BORDER));
+  }
+
+  private void buildMosaicTab(Composite content, int middle, int margin) {
+    Composite last = null;
     last =
         row(
             content,
@@ -421,12 +514,22 @@ public class GdalRasterBuildVrtDialog extends BaseTransformDialog {
   }
 
   private void refreshEnabledStates() {
+    boolean explicitListMode = !"DIRECTORY_GLOB".equalsIgnoreCase(wInputCollectionMode.getText());
     boolean constantInput = !"FIELD".equalsIgnoreCase(wInputListValueMode.getText());
+    boolean constantDirectory = !"FIELD".equalsIgnoreCase(wDirectoryValueMode.getText());
     boolean constantOutput = !"FIELD".equalsIgnoreCase(wOutputValueMode.getText());
-    boolean localInput = "LOCAL_FILE".equalsIgnoreCase(wInputInterpretationMode.getText());
     boolean localOutput = "LOCAL_FILE".equalsIgnoreCase(wOutputSourceMode.getText());
+    if (!explicitListMode && !"LOCAL_FILE".equalsIgnoreCase(wInputInterpretationMode.getText())) {
+      wInputInterpretationMode.setText("LOCAL_FILE");
+      return;
+    }
+    boolean localInput = "LOCAL_FILE".equalsIgnoreCase(wInputInterpretationMode.getText());
+    RasterDialogUiSupport.setControlEnabled(wInputInterpretationMode, explicitListMode);
     RasterDialogUiSupport.setValueModeState(
-        wInputListValue, wbInputList, wInputListField, constantInput, localInput);
+        wInputListValue, wbInputList, wInputListField, explicitListMode, constantInput, localInput);
+    RasterDialogUiSupport.setValueModeState(
+        wInputDirectory, wbInputDirectory, wDirectoryField, !explicitListMode, constantDirectory, true);
+    RasterDialogUiSupport.setTextEditable(wGlobPattern, !explicitListMode);
     RasterDialogUiSupport.setValueModeState(
         wOutputValue, wbOutput, wOutputField, constantOutput, localOutput);
     RasterDialogUiSupport.setAuthState(
@@ -445,14 +548,23 @@ public class GdalRasterBuildVrtDialog extends BaseTransformDialog {
 
   private void ok() {
     transformName = wTransformName.getText();
-    input.setInputInterpretationMode(wInputInterpretationMode.getText());
+    input.setInputCollectionMode(wInputCollectionMode.getText());
+    input.setInputInterpretationMode(
+        "DIRECTORY_GLOB".equalsIgnoreCase(wInputCollectionMode.getText())
+            ? "LOCAL_FILE"
+            : wInputInterpretationMode.getText());
     input.setInputListValueMode(wInputListValueMode.getText());
     input.setInputListValue(wInputListValue.getText());
     input.setInputListField(wInputListField.getText());
+    input.setDirectoryParameterSource(wDirectoryValueMode.getText());
+    input.setInputDirectory(wInputDirectory.getText());
+    input.setDirectoryField(wDirectoryField.getText());
+    input.setGlobPattern(wGlobPattern.getText());
     input.setOutputSourceMode(wOutputSourceMode.getText());
     input.setOutputValueMode(wOutputValueMode.getText());
     input.setOutputValue(wOutputValue.getText());
     input.setOutputField(wOutputField.getText());
+    input.setOutputWriteMode(wWriteMode.getText());
     input.setAuthType(wAuthType.getText());
     input.setAuthUsername(wAuthUsername.getText());
     input.setAuthPassword(wAuthPassword.getText());
@@ -478,7 +590,8 @@ public class GdalRasterBuildVrtDialog extends BaseTransformDialog {
   }
 
   private void browseInputList() {
-    if (!"LOCAL_FILE".equalsIgnoreCase(wInputInterpretationMode.getText())
+    if (!"EXPLICIT_LIST".equalsIgnoreCase(wInputCollectionMode.getText())
+        || !"LOCAL_FILE".equalsIgnoreCase(wInputInterpretationMode.getText())
         || !"CONSTANT".equalsIgnoreCase(wInputListValueMode.getText())) {
       return;
     }
@@ -494,6 +607,18 @@ public class GdalRasterBuildVrtDialog extends BaseTransformDialog {
       buffer.append(';').append(basePath).append('/').append(files[i]);
     }
     wInputListValue.setText(buffer.toString());
+  }
+
+  private void browseInputDirectory() {
+    if (!"DIRECTORY_GLOB".equalsIgnoreCase(wInputCollectionMode.getText())
+        || !"CONSTANT".equalsIgnoreCase(wDirectoryValueMode.getText())) {
+      return;
+    }
+    DirectoryDialog dialog = new DirectoryDialog(shell);
+    String selected = dialog.open();
+    if (selected != null) {
+      wInputDirectory.setText(selected);
+    }
   }
 
   private void browseOutput() {

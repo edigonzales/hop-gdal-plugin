@@ -26,18 +26,20 @@ The bindings now expose:
 - `DatasetRefType`
 - `GdalConfig`
 - `ScopedGdalConfig`
-- `Gdal.info(...)`
-- `Gdal.buildVrt(...)`
-- `Gdal.rasterize(...)`
-- `DatasetRef` / `GdalConfig` overloads for `translate` and `warp`
+- `Gdal.rasterInfo(...)`
+- `Gdal.rasterConvert(...)`
+- `Gdal.rasterClip(...)`
+- `Gdal.rasterReproject(...)`
+- `Gdal.rasterResize(...)`
+- `Gdal.rasterMosaic(...)`
+- `Gdal.vectorRasterize(...)`
 - `DatasetRef` / `GdalConfig` overloads for `Ogr.open` and `Ogr.create`
 
 Low-level FFM coverage was extended for:
 
-- `GDALInfo`
-- `GDALBuildVRT`
-- `GDALRasterize`
-- matching `*OptionsNew` / `*OptionsFree`
+- `gdalalgorithm.h` / `gdalalgorithm_c.h`
+- algorithm registry/instantiation/run/finalize functions
+- algorithm argument lookup and string-output extraction
 - thread-local GDAL config operations via CPL
 
 ## Remote dataset model
@@ -70,5 +72,5 @@ Scoped config ensures these values are applied per operation and restored afterw
 
 - more direct integration tests around authenticated HTTP mock servers
 - optional future exposures such as `DEMProcessing`, `Nearblack`, `Grid`
-- possible regeneration of the checked-in low-level bindings through the jextract script once the
-  native header workflow is refreshed again
+- checked-in low-level bindings were regenerated against the cleaned-up `jextract` input set so
+  the obsolete raster utility wrappers are no longer part of the generated output

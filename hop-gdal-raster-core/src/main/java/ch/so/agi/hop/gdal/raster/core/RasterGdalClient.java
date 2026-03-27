@@ -3,18 +3,25 @@ package ch.so.agi.hop.gdal.raster.core;
 import java.util.List;
 
 public interface RasterGdalClient {
-  String info(DatasetRef input, RemoteAccessSpec remoteAccess, List<String> args) throws Exception;
+  String rasterInfo(DatasetRef input, RemoteAccessSpec remoteAccess, List<String> args) throws Exception;
 
-  void translate(DatasetRef input, DatasetRef output, RemoteAccessSpec remoteAccess, List<String> args)
+  void rasterConvert(DatasetRef input, DatasetRef output, RemoteAccessSpec remoteAccess, List<String> args)
       throws Exception;
 
-  void warp(DatasetRef input, DatasetRef output, RemoteAccessSpec remoteAccess, List<String> args)
+  void rasterClip(DatasetRef input, DatasetRef output, RemoteAccessSpec remoteAccess, List<String> args)
       throws Exception;
 
-  void buildVrt(
+  void rasterReproject(DatasetRef input, DatasetRef output, RemoteAccessSpec remoteAccess, List<String> args)
+      throws Exception;
+
+  void rasterResize(DatasetRef input, DatasetRef output, RemoteAccessSpec remoteAccess, List<String> args)
+      throws Exception;
+
+  void rasterMosaic(
       List<DatasetRef> inputs, DatasetRef output, RemoteAccessSpec remoteAccess, List<String> args)
       throws Exception;
 
-  void rasterize(DatasetRef vectorInput, DatasetRef output, RemoteAccessSpec remoteAccess, List<String> args)
+  void vectorRasterize(
+      DatasetRef vectorInput, DatasetRef output, RemoteAccessSpec remoteAccess, List<String> args)
       throws Exception;
 }

@@ -9,18 +9,21 @@ import java.util.Map;
 
 public class DefaultRasterGdalClient implements RasterGdalClient {
   @Override
-  public String info(DatasetRef input, RemoteAccessSpec remoteAccess, List<String> args) throws Exception {
+  public String rasterInfo(DatasetRef input, RemoteAccessSpec remoteAccess, List<String> args)
+      throws Exception {
     return OgrBindingsClassLoaderSupport.withPluginContextClassLoader(
-        () -> Gdal.info(toBindingDatasetRef(input), toBindingConfig(remoteAccess), args.toArray(String[]::new)));
+        () ->
+            Gdal.rasterInfo(
+                toBindingDatasetRef(input), toBindingConfig(remoteAccess), args.toArray(String[]::new)));
   }
 
   @Override
-  public void translate(
+  public void rasterConvert(
       DatasetRef input, DatasetRef output, RemoteAccessSpec remoteAccess, List<String> args)
       throws Exception {
     OgrBindingsClassLoaderSupport.withPluginContextClassLoader(
         () ->
-            Gdal.translate(
+            Gdal.rasterConvert(
                 toBindingDatasetRef(output),
                 toBindingDatasetRef(input),
                 toBindingConfig(remoteAccess),
@@ -28,11 +31,12 @@ public class DefaultRasterGdalClient implements RasterGdalClient {
   }
 
   @Override
-  public void warp(DatasetRef input, DatasetRef output, RemoteAccessSpec remoteAccess, List<String> args)
+  public void rasterClip(
+      DatasetRef input, DatasetRef output, RemoteAccessSpec remoteAccess, List<String> args)
       throws Exception {
     OgrBindingsClassLoaderSupport.withPluginContextClassLoader(
         () ->
-            Gdal.warp(
+            Gdal.rasterClip(
                 toBindingDatasetRef(output),
                 toBindingDatasetRef(input),
                 toBindingConfig(remoteAccess),
@@ -40,12 +44,38 @@ public class DefaultRasterGdalClient implements RasterGdalClient {
   }
 
   @Override
-  public void buildVrt(
+  public void rasterReproject(
+      DatasetRef input, DatasetRef output, RemoteAccessSpec remoteAccess, List<String> args)
+      throws Exception {
+    OgrBindingsClassLoaderSupport.withPluginContextClassLoader(
+        () ->
+            Gdal.rasterReproject(
+                toBindingDatasetRef(output),
+                toBindingDatasetRef(input),
+                toBindingConfig(remoteAccess),
+                args.toArray(String[]::new)));
+  }
+
+  @Override
+  public void rasterResize(
+      DatasetRef input, DatasetRef output, RemoteAccessSpec remoteAccess, List<String> args)
+      throws Exception {
+    OgrBindingsClassLoaderSupport.withPluginContextClassLoader(
+        () ->
+            Gdal.rasterResize(
+                toBindingDatasetRef(output),
+                toBindingDatasetRef(input),
+                toBindingConfig(remoteAccess),
+                args.toArray(String[]::new)));
+  }
+
+  @Override
+  public void rasterMosaic(
       List<DatasetRef> inputs, DatasetRef output, RemoteAccessSpec remoteAccess, List<String> args)
       throws Exception {
     OgrBindingsClassLoaderSupport.withPluginContextClassLoader(
         () ->
-            Gdal.buildVrt(
+            Gdal.rasterMosaic(
                 toBindingDatasetRef(output),
                 inputs.stream().map(this::toBindingDatasetRef).toList(),
                 toBindingConfig(remoteAccess),
@@ -53,12 +83,12 @@ public class DefaultRasterGdalClient implements RasterGdalClient {
   }
 
   @Override
-  public void rasterize(
+  public void vectorRasterize(
       DatasetRef vectorInput, DatasetRef output, RemoteAccessSpec remoteAccess, List<String> args)
       throws Exception {
     OgrBindingsClassLoaderSupport.withPluginContextClassLoader(
         () ->
-            Gdal.rasterize(
+            Gdal.vectorRasterize(
                 toBindingDatasetRef(output),
                 toBindingDatasetRef(vectorInput),
                 toBindingConfig(remoteAccess),

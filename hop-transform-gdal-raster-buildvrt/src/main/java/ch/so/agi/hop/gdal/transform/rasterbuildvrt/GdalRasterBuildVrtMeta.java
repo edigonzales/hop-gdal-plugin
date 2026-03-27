@@ -4,6 +4,7 @@ import ch.so.agi.hop.gdal.raster.core.AbstractGdalRasterMeta;
 import ch.so.agi.hop.gdal.raster.core.AdditionalArgsParser;
 import ch.so.agi.hop.gdal.raster.core.BoundsSpec;
 import ch.so.agi.hop.gdal.raster.core.CreationOptionParser;
+import ch.so.agi.hop.gdal.raster.core.RasterOutputOptionsSupport;
 import ch.so.agi.hop.gdal.raster.core.RasterTransformSupport;
 import java.util.List;
 import org.apache.hop.core.CheckResult;
@@ -28,14 +29,20 @@ import org.apache.hop.pipeline.transform.TransformMeta;
 public class GdalRasterBuildVrtMeta
     extends AbstractGdalRasterMeta<GdalRasterBuildVrtTransform, GdalRasterBuildVrtData> {
 
+  @HopMetadataProperty private String inputCollectionMode;
   @HopMetadataProperty private String inputInterpretationMode;
   @HopMetadataProperty private String inputListValueMode;
   @HopMetadataProperty private String inputListValue;
   @HopMetadataProperty private String inputListField;
+  @HopMetadataProperty private String directoryParameterSource;
+  @HopMetadataProperty private String inputDirectory;
+  @HopMetadataProperty private String directoryField;
+  @HopMetadataProperty private String globPattern;
   @HopMetadataProperty private String outputSourceMode;
   @HopMetadataProperty private String outputValueMode;
   @HopMetadataProperty private String outputValue;
   @HopMetadataProperty private String outputField;
+  @HopMetadataProperty private String outputWriteMode;
   @HopMetadataProperty private String authType;
   @HopMetadataProperty private String authUsername;
   @HopMetadataProperty private String authPassword;
@@ -53,14 +60,20 @@ public class GdalRasterBuildVrtMeta
 
   @Override
   public void setDefault() {
+    inputCollectionMode = "EXPLICIT_LIST";
     inputInterpretationMode = "LOCAL_FILE";
     inputListValueMode = "CONSTANT";
     inputListValue = "";
     inputListField = "";
+    directoryParameterSource = "CONSTANT";
+    inputDirectory = "";
+    directoryField = "";
+    globPattern = "*.tif";
     outputSourceMode = "LOCAL_FILE";
     outputValueMode = "CONSTANT";
     outputValue = "";
     outputField = "";
+    outputWriteMode = RasterOutputOptionsSupport.WRITE_MODE_FAIL_IF_EXISTS;
     authType = "NONE";
     authUsername = "";
     authPassword = "";
@@ -90,17 +103,42 @@ public class GdalRasterBuildVrtMeta
       IRowMeta info,
       IVariables variables,
       IHopMetadataProvider metadataProvider) {
-    if ("FIELD".equalsIgnoreCase(inputListValueMode)
-        && (inputListField == null || inputListField.isBlank())) {
-      remarks.add(
-          new CheckResult(ICheckResult.TYPE_RESULT_ERROR, "Input raster list field is required", transformMeta));
-      return;
-    }
-    if (!"FIELD".equalsIgnoreCase(inputListValueMode)
-        && (inputListValue == null || inputListValue.isBlank())) {
-      remarks.add(
-          new CheckResult(ICheckResult.TYPE_RESULT_ERROR, "Input raster list is required", transformMeta));
-      return;
+    if ("DIRECTORY_GLOB".equalsIgnoreCase(inputCollectionMode)) {
+      if ("FIELD".equalsIgnoreCase(directoryParameterSource)
+          && (directoryField == null || directoryField.isBlank())) {
+        remarks.add(
+            new CheckResult(
+                ICheckResult.TYPE_RESULT_ERROR, "Input directory field is required", transformMeta));
+        return;
+      }
+      if (!"FIELD".equalsIgnoreCase(directoryParameterSource)
+          && (inputDirectory == null || inputDirectory.isBlank())) {
+        remarks.add(
+            new CheckResult(
+                ICheckResult.TYPE_RESULT_ERROR, "Input directory is required", transformMeta));
+        return;
+      }
+      if (globPattern == null || globPattern.isBlank()) {
+        remarks.add(
+            new CheckResult(
+                ICheckResult.TYPE_RESULT_ERROR, "Glob pattern is required", transformMeta));
+        return;
+      }
+    } else {
+      if ("FIELD".equalsIgnoreCase(inputListValueMode)
+          && (inputListField == null || inputListField.isBlank())) {
+        remarks.add(
+            new CheckResult(
+                ICheckResult.TYPE_RESULT_ERROR, "Input raster list field is required", transformMeta));
+        return;
+      }
+      if (!"FIELD".equalsIgnoreCase(inputListValueMode)
+          && (inputListValue == null || inputListValue.isBlank())) {
+        remarks.add(
+            new CheckResult(
+                ICheckResult.TYPE_RESULT_ERROR, "Input raster list is required", transformMeta));
+        return;
+      }
     }
     if ("FIELD".equalsIgnoreCase(outputValueMode)
         && (outputField == null || outputField.isBlank())) {
@@ -120,6 +158,16 @@ public class GdalRasterBuildVrtMeta
     }
 
     try {
+      RasterOutputOptionsSupport.validateWriteMode(
+          outputWriteMode, RasterOutputOptionsSupport.rasterAlgorithmWriteModes(), "Raster mosaic");
+      if (separateBands) {
+        throw new IllegalArgumentException(
+            "Separate bands is not supported by the gdal raster mosaic backend");
+      }
+      if (allowProjectionDifference) {
+        throw new IllegalArgumentException(
+            "Allow projection difference is not supported by the gdal raster mosaic backend");
+      }
       if (bounds != null && !bounds.isBlank()) {
         BoundsSpec.parse(bounds);
       }
@@ -136,6 +184,14 @@ public class GdalRasterBuildVrtMeta
 
   public String getInputInterpretationMode() {
     return inputInterpretationMode;
+  }
+
+  public String getInputCollectionMode() {
+    return inputCollectionMode;
+  }
+
+  public void setInputCollectionMode(String inputCollectionMode) {
+    this.inputCollectionMode = inputCollectionMode;
   }
 
   public void setInputInterpretationMode(String inputInterpretationMode) {
@@ -164,6 +220,38 @@ public class GdalRasterBuildVrtMeta
 
   public void setInputListField(String inputListField) {
     this.inputListField = inputListField;
+  }
+
+  public String getDirectoryParameterSource() {
+    return directoryParameterSource;
+  }
+
+  public void setDirectoryParameterSource(String directoryParameterSource) {
+    this.directoryParameterSource = directoryParameterSource;
+  }
+
+  public String getInputDirectory() {
+    return inputDirectory;
+  }
+
+  public void setInputDirectory(String inputDirectory) {
+    this.inputDirectory = inputDirectory;
+  }
+
+  public String getDirectoryField() {
+    return directoryField;
+  }
+
+  public void setDirectoryField(String directoryField) {
+    this.directoryField = directoryField;
+  }
+
+  public String getGlobPattern() {
+    return globPattern;
+  }
+
+  public void setGlobPattern(String globPattern) {
+    this.globPattern = globPattern;
   }
 
   public String getOutputSourceMode() {
@@ -196,6 +284,14 @@ public class GdalRasterBuildVrtMeta
 
   public void setOutputField(String outputField) {
     this.outputField = outputField;
+  }
+
+  public String getOutputWriteMode() {
+    return outputWriteMode;
+  }
+
+  public void setOutputWriteMode(String outputWriteMode) {
+    this.outputWriteMode = RasterOutputOptionsSupport.normalizeConfiguredWriteMode(outputWriteMode);
   }
 
   public String getAuthType() {

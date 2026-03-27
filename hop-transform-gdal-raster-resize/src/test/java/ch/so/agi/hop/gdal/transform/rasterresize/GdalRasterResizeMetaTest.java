@@ -14,6 +14,17 @@ class GdalRasterResizeMetaTest {
     GdalRasterResizeMeta meta = new GdalRasterResizeMeta();
     meta.setDefault();
     assertEquals("SIZE", meta.getSizingMode());
+    assertEquals("FAIL_IF_EXISTS", meta.getOutputWriteMode());
+  }
+
+  @Test
+  void outputWriteModeNormalizesValues() {
+    GdalRasterResizeMeta meta = new GdalRasterResizeMeta();
+    meta.setDefault();
+    meta.setOutputWriteMode("OVERWRITE");
+    assertEquals("OVERWRITE", meta.getOutputWriteMode());
+    meta.setOutputWriteMode("APPEND");
+    assertEquals("APPEND", meta.getOutputWriteMode());
   }
 
   @Test

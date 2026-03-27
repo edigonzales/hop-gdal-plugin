@@ -3,14 +3,14 @@
 ## Raster Info
 
 - UI name: `Raster Info`
-- Binding/API: `Gdal.info(...)`
+- Binding/API: `Gdal.rasterInfo(...)`
 - Purpose: read raster metadata as JSON
 - Primary output: full JSON payload in `gdal_details_json`
 
 ## Raster Convert
 
 - UI name: `Raster Convert`
-- Binding/API: `Gdal.translate(...)`
+- Binding/API: `Gdal.rasterConvert(...)`
 - Purpose: format conversion with user-friendly output presets
 - Typical uses:
   - GeoTIFF to COG
@@ -21,7 +21,7 @@
 ## Raster Clip
 
 - UI name: `Raster Clip`
-- Binding/API: `Gdal.warp(...)` and `Gdal.translate(...)`
+- Binding/API: `Gdal.rasterClip(...)`
 - Purpose: spatial clipping only
 - Typical uses:
   - bounds clipping
@@ -31,7 +31,7 @@
 ## Raster Reproject
 
 - UI name: `Raster Reproject`
-- Binding/API: `Gdal.warp(...)`
+- Binding/API: `Gdal.rasterReproject(...)`
 - Purpose: CRS change and target sizing
 - Typical uses:
   - reprojection into a target CRS
@@ -41,7 +41,7 @@
 ## Raster Resize
 
 - UI name: `Raster Resize`
-- Binding/API: `Gdal.translate(...)`
+- Binding/API: `Gdal.rasterResize(...)`
 - Purpose: output size or output resolution changes without clip-specific UI
 - Typical uses:
   - resize to fixed width/height
@@ -51,7 +51,7 @@
 ## Raster Mosaic
 
 - UI name: `Raster Mosaic`
-- Binding/API: `Gdal.buildVrt(...)`
+- Binding/API: `Gdal.rasterMosaic(...)`
 - Purpose: generate a virtual raster mosaic or stack from a list of raster inputs
 - V1 limitation:
   - source list is supplied per row as semicolon/newline/JSON-array text
@@ -61,7 +61,7 @@
 ## Rasterize Vector
 
 - UI name: `Rasterize Vector`
-- Binding/API: `Gdal.rasterize(...)`
+- Binding/API: `Gdal.vectorRasterize(...)`
 - Purpose: burn vector content into a raster
 - Supported V1 inputs:
   - dataset/layer

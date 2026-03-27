@@ -5,23 +5,19 @@ import ch.so.agi.hop.gdal.raster.core.AdditionalArgsParser;
 import ch.so.agi.hop.gdal.raster.core.BoundsSpec;
 import ch.so.agi.hop.gdal.raster.core.CreationOptionParser;
 import ch.so.agi.hop.gdal.raster.core.DatasetRef;
-import ch.so.agi.hop.gdal.raster.core.DatasetRefType;
 import ch.so.agi.hop.gdal.raster.core.RasterTransformResult;
+import ch.so.agi.hop.gdal.raster.core.RasterOutputOptionsSupport;
 import ch.so.agi.hop.gdal.raster.core.RasterTransformSupport;
 import ch.so.agi.hop.gdal.raster.core.RemoteAccessSpec;
-import ch.so.agi.hop.gdal.raster.core.VsiVectorDatasetSupport;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
 import org.apache.hop.pipeline.Pipeline;
 import org.apache.hop.pipeline.PipelineMeta;
 import org.apache.hop.pipeline.transform.TransformMeta;
-import org.locationtech.jts.io.WKTReader;
 
 public class GdalRasterClipTransform
     extends AbstractGdalRasterTransform<GdalRasterClipMeta, GdalRasterClipData> {
-  private static final WKTReader WKT_READER = new WKTReader();
-
   public GdalRasterClipTransform(
       TransformMeta transformMeta,
       GdalRasterClipMeta meta,
@@ -65,70 +61,105 @@ public class GdalRasterClipTransform
             this::resolveConstant);
 
     String clipMode = resolveConstant(meta.getClipMode()).trim().toUpperCase();
+    String clipParameterSourceMode = meta.getClipParameterSourceMode();
     List<String> args = new ArrayList<>();
     if (meta.getOutputFormat() != null && !meta.getOutputFormat().isBlank()) {
-      args.add("-of");
+      args.add("--output-format");
       args.add(resolveConstant(meta.getOutputFormat()));
     }
-    if (meta.isOverwrite()) {
-      args.add("-overwrite");
-    }
-    for (String creationOption : CreationOptionParser.parse(resolveConstant(meta.getCreationOptions()))) {
-      args.add("-co");
-      args.add(creationOption);
+    RasterOutputOptionsSupport.addRasterAlgorithmWriteModeArgs(args, meta.getOutputWriteMode());
+    LinkedHashMap<String, String> creationOptions = new LinkedHashMap<>();
+    RasterOutputOptionsSupport.applyCompressionPreset(
+        creationOptions, resolveConstant(meta.getCompressionPreset()));
+    creationOptions.putAll(CreationOptionParser.parseKeyValueMap(resolveConstant(meta.getCreationOptions())));
+    for (var entry : creationOptions.entrySet()) {
+      args.add("--creation-option");
+      args.add(entry.getKey() + "=" + entry.getValue());
     }
     args.addAll(AdditionalArgsParser.parse(resolveConstant(meta.getAdditionalClipArgs())));
 
     switch (clipMode) {
       case "PIXEL_WINDOW" -> {
-        appendWindowArg(args, resolveConstant(meta.getPixelWindow()));
-        gdalClient().translate(input, output, remoteAccess, args);
+        args.add("--window");
+        args.add(
+            normalizeCommaSeparatedValue(
+                RasterTransformSupport.resolveRequiredValue(
+                    clipParameterSourceMode,
+                    meta.getPixelWindow(),
+                    meta.getPixelWindowField(),
+                    row,
+                    getInputRowMeta(),
+                    this::resolveConstant,
+                    "Pixel window")));
       }
       case "BOUNDING_BOX" -> {
-        BoundsSpec bounds = BoundsSpec.parse(resolveConstant(meta.getBounds()));
-        args.addAll(bounds.toWarpArgs());
+        args.add("--bbox");
+        args.add(
+            BoundsSpec.parse(
+                    RasterTransformSupport.resolveRequiredValue(
+                        clipParameterSourceMode,
+                        meta.getBounds(),
+                        meta.getBoundsField(),
+                        row,
+                        getInputRowMeta(),
+                        this::resolveConstant,
+                        "Bounds"))
+                .toCommaSeparated());
         if (meta.isAddAlpha()) {
-          args.add("-dstalpha");
+          args.add("--add-alpha");
         }
-        gdalClient().warp(input, output, remoteAccess, args);
       }
       case "INLINE_GEOMETRY" -> {
-        DatasetRef cutline =
-            VsiVectorDatasetSupport.writeSingleGeometryDataset(
-                WKT_READER.read(resolveConstant(meta.getInlineGeometry())), "clip", Map.of());
-        args.add("-cutline");
-        args.add(cutline.value());
-        args.add("-crop_to_cutline");
+        args.add("--geometry");
+        args.add(
+            RasterTransformSupport.resolveRequiredValue(
+                clipParameterSourceMode,
+                meta.getInlineGeometry(),
+                meta.getInlineGeometryField(),
+                row,
+                getInputRowMeta(),
+                this::resolveConstant,
+                "Inline geometry"));
         if (meta.isAddAlpha()) {
-          args.add("-dstalpha");
+          args.add("--add-alpha");
         }
-        gdalClient().warp(input, output, remoteAccess, args);
       }
       case "TEMPLATE_DATASET" -> {
+        String templateDatasetValue =
+            RasterTransformSupport.resolveRequiredValue(
+                clipParameterSourceMode,
+                meta.getTemplateDatasetValue(),
+                meta.getTemplateDatasetField(),
+                row,
+                getInputRowMeta(),
+                this::resolveConstant,
+                "Template dataset");
         DatasetRef templateDataset =
-            new DatasetRef(
-                DatasetRefType.fromValue(resolveConstant(meta.getTemplateSourceMode())),
-                resolveConstant(meta.getTemplateDatasetValue()));
-        args.add("-cutline");
-        args.add(templateDataset.value());
-        if (meta.getTemplateLayerName() != null && !meta.getTemplateLayerName().isBlank()) {
-          args.add("-cl");
-          args.add(resolveConstant(meta.getTemplateLayerName()));
+            "FIELD".equalsIgnoreCase(clipParameterSourceMode)
+                ? inferDatasetRef(templateDatasetValue)
+                : RasterTransformSupport.resolveConstantDatasetRef(
+                    resolveConstant(meta.getTemplateSourceMode()), templateDatasetValue);
+        args.add("--like");
+        args.add(templateDataset.toGdalIdentifier());
+        String templateLayer = RasterTransformSupport.trimToNull(resolveConstant(meta.getTemplateLayerName()));
+        if (templateLayer != null && !templateLayer.isBlank()) {
+          args.add("--like-layer");
+          args.add(templateLayer);
         }
-        args.add("-crop_to_cutline");
         if (meta.isAddAlpha()) {
-          args.add("-dstalpha");
+          args.add("--add-alpha");
         }
-        gdalClient().warp(input, output, remoteAccess, args);
       }
       default -> throw new IllegalArgumentException("Unsupported clip mode: " + clipMode);
     }
+
+    gdalClient().rasterClip(input, output, remoteAccess, args);
 
     return RasterTransformResult.success(
         System.currentTimeMillis() - start, input.value(), output.value(), "{}");
   }
 
-  private static void appendWindowArg(List<String> args, String value) {
+  private static String normalizeCommaSeparatedValue(String value) {
     if (value == null || value.isBlank()) {
       throw new IllegalArgumentException("Pixel window is required");
     }
@@ -136,9 +167,10 @@ public class GdalRasterClipTransform
     if (parts.length != 4) {
       throw new IllegalArgumentException("Pixel window must contain four values: xoff,yoff,xsize,ysize");
     }
-    args.add("-srcwin");
-    for (String part : parts) {
-      args.add(part.trim());
-    }
+    return String.join(",", parts[0].trim(), parts[1].trim(), parts[2].trim(), parts[3].trim());
+  }
+
+  private static DatasetRef inferDatasetRef(String value) {
+    return RasterTransformSupport.inferDatasetRef(value);
   }
 }

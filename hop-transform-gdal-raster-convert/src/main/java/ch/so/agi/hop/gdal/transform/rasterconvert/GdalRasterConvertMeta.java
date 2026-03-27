@@ -3,6 +3,7 @@ package ch.so.agi.hop.gdal.transform.rasterconvert;
 import ch.so.agi.hop.gdal.raster.core.AbstractGdalRasterMeta;
 import ch.so.agi.hop.gdal.raster.core.AdditionalArgsParser;
 import ch.so.agi.hop.gdal.raster.core.CreationOptionParser;
+import ch.so.agi.hop.gdal.raster.core.RasterOutputOptionsSupport;
 import ch.so.agi.hop.gdal.raster.core.RasterTransformSupport;
 import java.util.List;
 import org.apache.hop.core.CheckResult;
@@ -68,9 +69,9 @@ public class GdalRasterConvertMeta
     customHeaderValue = "";
     gdalConfigOptions = "";
     outputFormat = "GTiff";
-    compressionPreset = "DEFAULT";
+    compressionPreset = RasterOutputOptionsSupport.COMPRESSION_DEFAULT;
     tiledOutput = false;
-    outputWriteMode = "FAIL_IF_EXISTS";
+    outputWriteMode = RasterOutputOptionsSupport.WRITE_MODE_FAIL_IF_EXISTS;
     openOptions = "";
     creationOptions = "";
     additionalTranslateArgs = "";
@@ -113,6 +114,8 @@ public class GdalRasterConvertMeta
     }
 
     try {
+      RasterOutputOptionsSupport.validateWriteMode(
+          outputWriteMode, RasterOutputOptionsSupport.rasterAlgorithmWriteModes(), "Raster convert");
       CreationOptionParser.parse(openOptions);
       CreationOptionParser.parse(creationOptions);
       CreationOptionParser.parseKeyValueMap(gdalConfigOptions);
@@ -162,21 +165,13 @@ public class GdalRasterConvertMeta
   public boolean isTiledOutput() { return tiledOutput; }
   public void setTiledOutput(boolean tiledOutput) { this.tiledOutput = tiledOutput; }
   public String getOutputWriteMode() { return outputWriteMode; }
-  public void setOutputWriteMode(String outputWriteMode) { this.outputWriteMode = normalizeOutputWriteMode(outputWriteMode); }
+  public void setOutputWriteMode(String outputWriteMode) {
+    this.outputWriteMode = RasterOutputOptionsSupport.normalizeConfiguredWriteMode(outputWriteMode);
+  }
   public String getOpenOptions() { return openOptions; }
   public void setOpenOptions(String openOptions) { this.openOptions = openOptions; }
   public String getCreationOptions() { return creationOptions; }
   public void setCreationOptions(String creationOptions) { this.creationOptions = creationOptions; }
   public String getAdditionalTranslateArgs() { return additionalTranslateArgs; }
   public void setAdditionalTranslateArgs(String additionalTranslateArgs) { this.additionalTranslateArgs = additionalTranslateArgs; }
-
-  private static String normalizeOutputWriteMode(String mode) {
-    if ("OVERWRITE".equalsIgnoreCase(mode)) {
-      return "OVERWRITE";
-    }
-    if ("APPEND".equalsIgnoreCase(mode)) {
-      return "APPEND";
-    }
-    return "FAIL_IF_EXISTS";
-  }
 }

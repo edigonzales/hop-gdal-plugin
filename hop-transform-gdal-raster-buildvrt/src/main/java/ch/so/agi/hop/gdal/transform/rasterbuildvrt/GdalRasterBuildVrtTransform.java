@@ -4,6 +4,7 @@ import ch.so.agi.hop.gdal.raster.core.AbstractGdalRasterTransform;
 import ch.so.agi.hop.gdal.raster.core.AdditionalArgsParser;
 import ch.so.agi.hop.gdal.raster.core.BoundsSpec;
 import ch.so.agi.hop.gdal.raster.core.DatasetRef;
+import ch.so.agi.hop.gdal.raster.core.RasterOutputOptionsSupport;
 import ch.so.agi.hop.gdal.raster.core.RasterTransformResult;
 import ch.so.agi.hop.gdal.raster.core.RasterTransformSupport;
 import ch.so.agi.hop.gdal.raster.core.RemoteAccessSpec;
@@ -31,15 +32,28 @@ public class GdalRasterBuildVrtTransform
   protected RasterTransformResult executeRasterJob(Object[] row) throws Exception {
     long start = System.currentTimeMillis();
 
-    List<DatasetRef> inputs =
-        RasterTransformSupport.resolveDatasetRefs(
-            meta.getInputInterpretationMode(),
-            meta.getInputListValueMode(),
-            meta.getInputListValue(),
-            meta.getInputListField(),
-            row,
-            getInputRowMeta(),
-            this::resolveConstant);
+    List<DatasetRef> inputs;
+    if ("DIRECTORY_GLOB".equalsIgnoreCase(meta.getInputCollectionMode())) {
+      inputs =
+          RasterTransformSupport.resolveLocalDirectoryGlobDatasetRefs(
+              meta.getDirectoryParameterSource(),
+              meta.getInputDirectory(),
+              meta.getDirectoryField(),
+              meta.getGlobPattern(),
+              row,
+              getInputRowMeta(),
+              this::resolveConstant);
+    } else {
+      inputs =
+          RasterTransformSupport.resolveDatasetRefs(
+              meta.getInputInterpretationMode(),
+              meta.getInputListValueMode(),
+              meta.getInputListValue(),
+              meta.getInputListField(),
+              row,
+              getInputRowMeta(),
+              this::resolveConstant);
+    }
     DatasetRef output =
         RasterTransformSupport.resolveOutputDatasetRef(
             meta.getOutputSourceMode(),
@@ -61,30 +75,28 @@ public class GdalRasterBuildVrtTransform
             this::resolveConstant);
 
     List<String> args = new ArrayList<>();
+    args.add("--output-format");
+    args.add("VRT");
+    RasterOutputOptionsSupport.addRasterAlgorithmWriteModeArgs(args, meta.getOutputWriteMode());
     if (meta.getResolutionStrategy() != null && !meta.getResolutionStrategy().isBlank()) {
-      args.add("-resolution");
+      args.add("--resolution");
       args.add(resolveConstant(meta.getResolutionStrategy()).toLowerCase());
     }
     if (meta.getBounds() != null && !meta.getBounds().isBlank()) {
-      args.addAll(BoundsSpec.parse(resolveConstant(meta.getBounds())).toWarpArgs());
-    }
-    if (meta.isSeparateBands()) {
-      args.add("-separate");
+      args.add("--bbox");
+      args.add(BoundsSpec.parse(resolveConstant(meta.getBounds())).toCommaSeparated());
     }
     if (meta.getSrcNoData() != null && !meta.getSrcNoData().isBlank()) {
-      args.add("-srcnodata");
+      args.add("--src-nodata");
       args.add(resolveConstant(meta.getSrcNoData()));
     }
     if (meta.getVrtNoData() != null && !meta.getVrtNoData().isBlank()) {
-      args.add("-vrtnodata");
+      args.add("--dst-nodata");
       args.add(resolveConstant(meta.getVrtNoData()));
-    }
-    if (meta.isAllowProjectionDifference()) {
-      args.add("-allow_projection_difference");
     }
     args.addAll(AdditionalArgsParser.parse(resolveConstant(meta.getAdditionalArgs())));
 
-    gdalClient().buildVrt(inputs, output, remoteAccess, args);
+    gdalClient().rasterMosaic(inputs, output, remoteAccess, args);
     String inputSummary =
         inputs.stream().map(DatasetRef::value).collect(Collectors.joining(System.lineSeparator()));
     return RasterTransformResult.success(

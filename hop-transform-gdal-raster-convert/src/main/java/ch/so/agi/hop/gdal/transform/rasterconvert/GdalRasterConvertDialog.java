@@ -2,13 +2,12 @@ package ch.so.agi.hop.gdal.transform.rasterconvert;
 
 import ch.so.agi.hop.gdal.raster.core.RasterDialogUiSupport;
 import ch.so.agi.hop.gdal.raster.core.RasterFormatCatalog;
-import java.util.ArrayList;
+import ch.so.agi.hop.gdal.raster.core.RasterOutputOptionsSupport;
 import java.util.List;
 import org.apache.hop.core.util.Utils;
 import org.apache.hop.core.variables.IVariables;
 import org.apache.hop.pipeline.PipelineMeta;
 import org.apache.hop.ui.core.PropsUi;
-import org.apache.hop.ui.core.dialog.BaseDialog;
 import org.apache.hop.ui.core.widget.ComboVar;
 import org.apache.hop.ui.core.widget.TextVar;
 import org.apache.hop.ui.pipeline.transform.BaseTransformDialog;
@@ -25,6 +24,8 @@ import org.eclipse.swt.widgets.TabFolder;
 import org.eclipse.swt.widgets.Text;
 
 public class GdalRasterConvertDialog extends BaseTransformDialog {
+  private static final String WINDOW_STATE_KEY = "hop-gdal-raster-convert-dialog-v2";
+
   private final GdalRasterConvertMeta input;
   private ComboVar wInputSourceMode;
   private ComboVar wInputValueMode;
@@ -64,7 +65,7 @@ public class GdalRasterConvertDialog extends BaseTransformDialog {
   @Override
   public String open() {
     shell = new Shell(getParent(), SWT.DIALOG_TRIM | SWT.RESIZE | SWT.MIN | SWT.MAX);
-    shell.setMinimumSize(980, 860);
+    shell.setMinimumSize(880, 720);
     PropsUi.setLook(shell);
     setShellImage(shell, input);
     shell.setText("Raster Convert");
@@ -108,8 +109,7 @@ public class GdalRasterConvertDialog extends BaseTransformDialog {
 
     int middle = props.getMiddlePct();
     RasterDialogUiSupport.TabSection inputTab = RasterDialogUiSupport.createTabSection(wTabFolder, "Input");
-    RasterDialogUiSupport.TabSection outputTab =
-        RasterDialogUiSupport.createTabSection(wTabFolder, "Output & Translate");
+    RasterDialogUiSupport.TabSection outputTab = RasterDialogUiSupport.createTabSection(wTabFolder, "Output");
     RasterDialogUiSupport.TabSection remoteTab =
         RasterDialogUiSupport.createTabSection(wTabFolder, "Remote access");
     RasterDialogUiSupport.TabSection advancedTab =
@@ -144,7 +144,11 @@ public class GdalRasterConvertDialog extends BaseTransformDialog {
     wOk.addListener(SWT.Selection, e -> ok());
     wCancel.addListener(SWT.Selection, e -> cancel());
 
-    BaseDialog.defaultShellHandling(shell, c -> ok(), c -> cancel());
+    RasterDialogUiSupport.openManagedDialog(
+        shell, WINDOW_STATE_KEY, 880, 720, this::ok, () -> {
+          cancel();
+          return true;
+        });
     return transformName;
   }
 
@@ -156,8 +160,8 @@ public class GdalRasterConvertDialog extends BaseTransformDialog {
     wInputValueMode.setItems(new String[] {"CONSTANT", "FIELD"});
     wOutputValueMode.setItems(new String[] {"CONSTANT", "FIELD"});
     wOutputFormat.setItems(RasterFormatCatalog.outputFormats().toArray(String[]::new));
-    refreshCompressionPresetChoices("DEFAULT");
-    wWriteMode.setItems(new String[] {"FAIL_IF_EXISTS", "OVERWRITE", "APPEND"});
+    refreshCompressionPresetChoices(RasterOutputOptionsSupport.COMPRESSION_DEFAULT);
+    wWriteMode.setItems(RasterOutputOptionsSupport.rasterAlgorithmWriteModes());
     wAuthType.setItems(new String[] {"NONE", "BASIC_AUTH", "BEARER_TOKEN", "SIGNED_URL", "CUSTOM_HEADER"});
   }
 
@@ -177,9 +181,14 @@ public class GdalRasterConvertDialog extends BaseTransformDialog {
     wOutputField.setText(Utils.isEmpty(input.getOutputField()) ? "" : input.getOutputField());
     wOutputFormat.setText(Utils.isEmpty(input.getOutputFormat()) ? "GTiff" : input.getOutputFormat());
     refreshCompressionPresetChoices(
-        Utils.isEmpty(input.getCompressionPreset()) ? "DEFAULT" : input.getCompressionPreset());
+        Utils.isEmpty(input.getCompressionPreset())
+            ? RasterOutputOptionsSupport.COMPRESSION_DEFAULT
+            : input.getCompressionPreset());
     wTiledOutput.setSelection(input.isTiledOutput());
-    wWriteMode.setText(Utils.isEmpty(input.getOutputWriteMode()) ? "FAIL_IF_EXISTS" : input.getOutputWriteMode());
+    wWriteMode.setText(
+        Utils.isEmpty(input.getOutputWriteMode())
+            ? RasterOutputOptionsSupport.WRITE_MODE_FAIL_IF_EXISTS
+            : input.getOutputWriteMode());
     wAuthType.setText(Utils.isEmpty(input.getAuthType()) ? "NONE" : input.getAuthType());
     wAuthUsername.setText(Utils.isEmpty(input.getAuthUsername()) ? "" : input.getAuthUsername());
     wAuthPassword.setText(Utils.isEmpty(input.getAuthPassword()) ? "" : input.getAuthPassword());
@@ -297,28 +306,8 @@ public class GdalRasterConvertDialog extends BaseTransformDialog {
   }
 
   private void refreshCompressionPresetChoices(String requestedSelection) {
-    List<String> choices = new ArrayList<>();
-    choices.add("DEFAULT");
-    choices.addAll(RasterFormatCatalog.compressionOptions(wOutputFormat.getText()));
-    wCompressionPreset.setItems(choices.toArray(String[]::new));
-
-    String selected = requestedSelection;
-    if (Utils.isEmpty(selected)) {
-      selected = wCompressionPreset.getText();
-    }
-    boolean supported = false;
-    if (!Utils.isEmpty(selected)) {
-      for (String choice : choices) {
-        if (choice.equalsIgnoreCase(selected)) {
-          supported = true;
-          break;
-        }
-      }
-    }
-    if (!supported) {
-      selected = "DEFAULT";
-    }
-    wCompressionPreset.setText(selected);
+    RasterDialogUiSupport.refreshCompressionPresetChoices(
+        wCompressionPreset, wOutputFormat.getText(), requestedSelection);
   }
 
   private void refreshTabLayouts() {

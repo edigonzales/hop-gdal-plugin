@@ -3,6 +3,7 @@ package ch.so.agi.hop.gdal.transform.rasterresize;
 import ch.so.agi.hop.gdal.raster.core.AbstractGdalRasterMeta;
 import ch.so.agi.hop.gdal.raster.core.AdditionalArgsParser;
 import ch.so.agi.hop.gdal.raster.core.CreationOptionParser;
+import ch.so.agi.hop.gdal.raster.core.RasterOutputOptionsSupport;
 import ch.so.agi.hop.gdal.raster.core.RasterTransformSupport;
 import java.util.List;
 import org.apache.hop.core.CheckResult;
@@ -43,7 +44,8 @@ public class GdalRasterResizeMeta
   @HopMetadataProperty private String customHeaderValue;
   @HopMetadataProperty private String gdalConfigOptions;
   @HopMetadataProperty private String outputFormat;
-  @HopMetadataProperty private boolean overwrite;
+  @HopMetadataProperty private String compressionPreset;
+  @HopMetadataProperty private String outputWriteMode;
   @HopMetadataProperty private String sizingMode;
   @HopMetadataProperty private String resolutionX;
   @HopMetadataProperty private String resolutionY;
@@ -71,7 +73,8 @@ public class GdalRasterResizeMeta
     customHeaderValue = "";
     gdalConfigOptions = "";
     outputFormat = "GTiff";
-    overwrite = false;
+    compressionPreset = RasterOutputOptionsSupport.COMPRESSION_DEFAULT;
+    outputWriteMode = RasterOutputOptionsSupport.WRITE_MODE_FAIL_IF_EXISTS;
     sizingMode = "SIZE";
     resolutionX = "";
     resolutionY = "";
@@ -119,6 +122,8 @@ public class GdalRasterResizeMeta
     }
 
     try {
+      RasterOutputOptionsSupport.validateWriteMode(
+          outputWriteMode, RasterOutputOptionsSupport.rasterAlgorithmWriteModes(), "Raster resize");
       validateSizingMode();
       CreationOptionParser.parse(creationOptions);
       CreationOptionParser.parseKeyValueMap(gdalConfigOptions);
@@ -180,8 +185,12 @@ public class GdalRasterResizeMeta
   public void setGdalConfigOptions(String gdalConfigOptions) { this.gdalConfigOptions = gdalConfigOptions; }
   public String getOutputFormat() { return outputFormat; }
   public void setOutputFormat(String outputFormat) { this.outputFormat = outputFormat; }
-  public boolean isOverwrite() { return overwrite; }
-  public void setOverwrite(boolean overwrite) { this.overwrite = overwrite; }
+  public String getCompressionPreset() { return compressionPreset; }
+  public void setCompressionPreset(String compressionPreset) { this.compressionPreset = compressionPreset; }
+  public String getOutputWriteMode() { return outputWriteMode; }
+  public void setOutputWriteMode(String outputWriteMode) {
+    this.outputWriteMode = RasterOutputOptionsSupport.normalizeConfiguredWriteMode(outputWriteMode);
+  }
   public String getSizingMode() { return sizingMode; }
   public void setSizingMode(String sizingMode) { this.sizingMode = sizingMode; }
   public String getResolutionX() { return resolutionX; }

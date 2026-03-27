@@ -4,6 +4,7 @@ import ch.so.agi.hop.gdal.raster.core.AbstractGdalRasterMeta;
 import ch.so.agi.hop.gdal.raster.core.AdditionalArgsParser;
 import ch.so.agi.hop.gdal.raster.core.BoundsSpec;
 import ch.so.agi.hop.gdal.raster.core.CreationOptionParser;
+import ch.so.agi.hop.gdal.raster.core.RasterOutputOptionsSupport;
 import ch.so.agi.hop.gdal.raster.core.RasterTransformSupport;
 import java.util.List;
 import org.apache.hop.core.CheckResult;
@@ -44,13 +45,19 @@ public class GdalRasterClipMeta
   @HopMetadataProperty private String customHeaderValue;
   @HopMetadataProperty private String gdalConfigOptions;
   @HopMetadataProperty private String outputFormat;
-  @HopMetadataProperty private boolean overwrite;
+  @HopMetadataProperty private String compressionPreset;
+  @HopMetadataProperty private String outputWriteMode;
   @HopMetadataProperty private String clipMode;
+  @HopMetadataProperty private String clipParameterSourceMode;
   @HopMetadataProperty private String bounds;
+  @HopMetadataProperty private String boundsField;
   @HopMetadataProperty private String pixelWindow;
+  @HopMetadataProperty private String pixelWindowField;
   @HopMetadataProperty private String inlineGeometry;
+  @HopMetadataProperty private String inlineGeometryField;
   @HopMetadataProperty private String templateSourceMode;
   @HopMetadataProperty private String templateDatasetValue;
+  @HopMetadataProperty private String templateDatasetField;
   @HopMetadataProperty private String templateLayerName;
   @HopMetadataProperty private boolean addAlpha;
   @HopMetadataProperty private String creationOptions;
@@ -74,13 +81,18 @@ public class GdalRasterClipMeta
     customHeaderValue = "";
     gdalConfigOptions = "";
     outputFormat = "GTiff";
-    overwrite = false;
+    compressionPreset = RasterOutputOptionsSupport.COMPRESSION_DEFAULT;
+    outputWriteMode = RasterOutputOptionsSupport.WRITE_MODE_FAIL_IF_EXISTS;
     clipMode = "BOUNDING_BOX";
+    clipParameterSourceMode = "CONSTANT";
     bounds = "";
+    boundsField = "";
     pixelWindow = "";
+    pixelWindowField = "";
     inlineGeometry = "";
     templateSourceMode = "LOCAL_FILE";
     templateDatasetValue = "";
+    templateDatasetField = "";
     templateLayerName = "";
     addAlpha = false;
     creationOptions = "";
@@ -124,6 +136,8 @@ public class GdalRasterClipMeta
     }
 
     try {
+      RasterOutputOptionsSupport.validateWriteMode(
+          outputWriteMode, RasterOutputOptionsSupport.rasterAlgorithmWriteModes(), "Raster clip");
       validateClipMode();
       CreationOptionParser.parse(creationOptions);
       CreationOptionParser.parseKeyValueMap(gdalConfigOptions);
@@ -139,27 +153,51 @@ public class GdalRasterClipMeta
   private void validateClipMode() {
     String normalizedMode = clipMode == null ? "" : clipMode.trim().toUpperCase();
     switch (normalizedMode) {
-      case "BOUNDING_BOX" -> BoundsSpec.parse(bounds);
+      case "BOUNDING_BOX" -> validateBoundsPayload();
       case "PIXEL_WINDOW" -> {
-        if (pixelWindow == null || pixelWindow.isBlank()) {
-          throw new IllegalArgumentException("Pixel window is required");
+        validateRequiredValueOrField(
+            clipParameterSourceMode, pixelWindowField, pixelWindow, "Pixel window");
+        if ("FIELD".equalsIgnoreCase(clipParameterSourceMode)) {
+          return;
         }
-        String[] parts = pixelWindow.split("[,;]");
-        if (parts.length != 4) {
-          throw new IllegalArgumentException("Pixel window must contain four values: xoff,yoff,xsize,ysize");
-        }
+        validatePixelWindow(pixelWindow);
       }
-      case "INLINE_GEOMETRY" -> {
-        if (inlineGeometry == null || inlineGeometry.isBlank()) {
-          throw new IllegalArgumentException("Inline geometry is required");
-        }
-      }
+      case "INLINE_GEOMETRY" ->
+          validateRequiredValueOrField(
+              clipParameterSourceMode, inlineGeometryField, inlineGeometry, "Inline geometry");
       case "TEMPLATE_DATASET" -> {
-        if (templateDatasetValue == null || templateDatasetValue.isBlank()) {
-          throw new IllegalArgumentException("Template dataset is required");
-        }
+        validateRequiredValueOrField(
+            clipParameterSourceMode, templateDatasetField, templateDatasetValue, "Template dataset");
       }
       default -> throw new IllegalArgumentException("Unsupported clip mode: " + clipMode);
+    }
+  }
+
+  private void validateBoundsPayload() {
+    validateRequiredValueOrField(clipParameterSourceMode, boundsField, bounds, "Bounds");
+    if ("FIELD".equalsIgnoreCase(clipParameterSourceMode)) {
+      return;
+    }
+    BoundsSpec.parse(bounds);
+  }
+
+  private static void validateRequiredValueOrField(
+      String valueMode, String fieldName, String constantValue, String label) {
+    if ("FIELD".equalsIgnoreCase(valueMode)) {
+      if (fieldName == null || fieldName.isBlank()) {
+        throw new IllegalArgumentException(label + " field is required");
+      }
+      return;
+    }
+    if (constantValue == null || constantValue.isBlank()) {
+      throw new IllegalArgumentException(label + " is required");
+    }
+  }
+
+  private static void validatePixelWindow(String value) {
+    String[] parts = value.split("[,;]");
+    if (parts.length != 4) {
+      throw new IllegalArgumentException("Pixel window must contain four values: xoff,yoff,xsize,ysize");
     }
   }
 
@@ -195,20 +233,36 @@ public class GdalRasterClipMeta
   public void setGdalConfigOptions(String gdalConfigOptions) { this.gdalConfigOptions = gdalConfigOptions; }
   public String getOutputFormat() { return outputFormat; }
   public void setOutputFormat(String outputFormat) { this.outputFormat = outputFormat; }
-  public boolean isOverwrite() { return overwrite; }
-  public void setOverwrite(boolean overwrite) { this.overwrite = overwrite; }
+  public String getCompressionPreset() { return compressionPreset; }
+  public void setCompressionPreset(String compressionPreset) { this.compressionPreset = compressionPreset; }
+  public String getOutputWriteMode() { return outputWriteMode; }
+  public void setOutputWriteMode(String outputWriteMode) {
+    this.outputWriteMode = RasterOutputOptionsSupport.normalizeConfiguredWriteMode(outputWriteMode);
+  }
   public String getClipMode() { return clipMode; }
   public void setClipMode(String clipMode) { this.clipMode = clipMode; }
+  public String getClipParameterSourceMode() { return clipParameterSourceMode; }
+  public void setClipParameterSourceMode(String clipParameterSourceMode) {
+    this.clipParameterSourceMode = clipParameterSourceMode;
+  }
   public String getBounds() { return bounds; }
   public void setBounds(String bounds) { this.bounds = bounds; }
+  public String getBoundsField() { return boundsField; }
+  public void setBoundsField(String boundsField) { this.boundsField = boundsField; }
   public String getPixelWindow() { return pixelWindow; }
   public void setPixelWindow(String pixelWindow) { this.pixelWindow = pixelWindow; }
+  public String getPixelWindowField() { return pixelWindowField; }
+  public void setPixelWindowField(String pixelWindowField) { this.pixelWindowField = pixelWindowField; }
   public String getInlineGeometry() { return inlineGeometry; }
   public void setInlineGeometry(String inlineGeometry) { this.inlineGeometry = inlineGeometry; }
+  public String getInlineGeometryField() { return inlineGeometryField; }
+  public void setInlineGeometryField(String inlineGeometryField) { this.inlineGeometryField = inlineGeometryField; }
   public String getTemplateSourceMode() { return templateSourceMode; }
   public void setTemplateSourceMode(String templateSourceMode) { this.templateSourceMode = templateSourceMode; }
   public String getTemplateDatasetValue() { return templateDatasetValue; }
   public void setTemplateDatasetValue(String templateDatasetValue) { this.templateDatasetValue = templateDatasetValue; }
+  public String getTemplateDatasetField() { return templateDatasetField; }
+  public void setTemplateDatasetField(String templateDatasetField) { this.templateDatasetField = templateDatasetField; }
   public String getTemplateLayerName() { return templateLayerName; }
   public void setTemplateLayerName(String templateLayerName) { this.templateLayerName = templateLayerName; }
   public boolean isAddAlpha() { return addAlpha; }

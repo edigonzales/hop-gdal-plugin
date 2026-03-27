@@ -4,6 +4,7 @@ import ch.so.agi.hop.gdal.raster.core.AbstractGdalRasterMeta;
 import ch.so.agi.hop.gdal.raster.core.AdditionalArgsParser;
 import ch.so.agi.hop.gdal.raster.core.BoundsSpec;
 import ch.so.agi.hop.gdal.raster.core.CreationOptionParser;
+import ch.so.agi.hop.gdal.raster.core.RasterOutputOptionsSupport;
 import ch.so.agi.hop.gdal.raster.core.RasterTransformSupport;
 import java.util.List;
 import org.apache.hop.core.CheckResult;
@@ -44,7 +45,8 @@ public class GdalRasterReprojectMeta
   @HopMetadataProperty private String customHeaderValue;
   @HopMetadataProperty private String gdalConfigOptions;
   @HopMetadataProperty private String outputFormat;
-  @HopMetadataProperty private boolean overwrite;
+  @HopMetadataProperty private String compressionPreset;
+  @HopMetadataProperty private String outputWriteMode;
   @HopMetadataProperty private String sourceCrs;
   @HopMetadataProperty private String targetCrs;
   @HopMetadataProperty private String sizingMode;
@@ -78,7 +80,8 @@ public class GdalRasterReprojectMeta
     customHeaderValue = "";
     gdalConfigOptions = "";
     outputFormat = "GTiff";
-    overwrite = false;
+    compressionPreset = RasterOutputOptionsSupport.COMPRESSION_DEFAULT;
+    outputWriteMode = RasterOutputOptionsSupport.WRITE_MODE_FAIL_IF_EXISTS;
     sourceCrs = "";
     targetCrs = "";
     sizingMode = "NONE";
@@ -132,6 +135,8 @@ public class GdalRasterReprojectMeta
     }
 
     try {
+      RasterOutputOptionsSupport.validateWriteMode(
+          outputWriteMode, RasterOutputOptionsSupport.rasterAlgorithmWriteModes(), "Raster reproject");
       if (targetCrs == null || targetCrs.isBlank()) {
         throw new IllegalArgumentException("Destination CRS is required");
       }
@@ -201,8 +206,12 @@ public class GdalRasterReprojectMeta
   public void setGdalConfigOptions(String gdalConfigOptions) { this.gdalConfigOptions = gdalConfigOptions; }
   public String getOutputFormat() { return outputFormat; }
   public void setOutputFormat(String outputFormat) { this.outputFormat = outputFormat; }
-  public boolean isOverwrite() { return overwrite; }
-  public void setOverwrite(boolean overwrite) { this.overwrite = overwrite; }
+  public String getCompressionPreset() { return compressionPreset; }
+  public void setCompressionPreset(String compressionPreset) { this.compressionPreset = compressionPreset; }
+  public String getOutputWriteMode() { return outputWriteMode; }
+  public void setOutputWriteMode(String outputWriteMode) {
+    this.outputWriteMode = RasterOutputOptionsSupport.normalizeConfiguredWriteMode(outputWriteMode);
+  }
   public String getSourceCrs() { return sourceCrs; }
   public void setSourceCrs(String sourceCrs) { this.sourceCrs = sourceCrs; }
   public String getTargetCrs() { return targetCrs; }

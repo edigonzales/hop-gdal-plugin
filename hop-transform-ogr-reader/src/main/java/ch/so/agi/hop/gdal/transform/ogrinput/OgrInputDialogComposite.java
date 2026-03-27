@@ -216,6 +216,7 @@ public class OgrInputDialogComposite extends Composite {
     label.setLayoutData(fdLabel);
 //    String bar
     //var foo = b;
+//    var foo=
   }
 
   private void buildRowMultiline(

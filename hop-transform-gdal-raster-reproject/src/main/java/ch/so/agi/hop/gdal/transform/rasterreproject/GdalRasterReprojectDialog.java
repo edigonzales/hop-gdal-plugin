@@ -2,12 +2,12 @@ package ch.so.agi.hop.gdal.transform.rasterreproject;
 
 import ch.so.agi.hop.gdal.raster.core.RasterDialogUiSupport;
 import ch.so.agi.hop.gdal.raster.core.RasterFormatCatalog;
+import ch.so.agi.hop.gdal.raster.core.RasterOutputOptionsSupport;
 import java.util.List;
 import org.apache.hop.core.util.Utils;
 import org.apache.hop.core.variables.IVariables;
 import org.apache.hop.pipeline.PipelineMeta;
 import org.apache.hop.ui.core.PropsUi;
-import org.apache.hop.ui.core.dialog.BaseDialog;
 import org.apache.hop.ui.core.widget.ComboVar;
 import org.apache.hop.ui.core.widget.TextVar;
 import org.apache.hop.ui.pipeline.transform.BaseTransformDialog;
@@ -24,6 +24,8 @@ import org.eclipse.swt.widgets.TabFolder;
 import org.eclipse.swt.widgets.Text;
 
 public class GdalRasterReprojectDialog extends BaseTransformDialog {
+  private static final String WINDOW_STATE_KEY = "hop-gdal-raster-reproject-dialog-v2";
+
   private final GdalRasterReprojectMeta input;
   private ComboVar wInputSourceMode;
   private ComboVar wInputValueMode;
@@ -36,7 +38,8 @@ public class GdalRasterReprojectDialog extends BaseTransformDialog {
   private Button wbOutput;
   private ComboVar wOutputField;
   private ComboVar wOutputFormat;
-  private Button wOverwrite;
+  private ComboVar wCompressionPreset;
+  private ComboVar wWriteMode;
   private TextVar wSourceCrs;
   private TextVar wTargetCrs;
   private ComboVar wSizingMode;
@@ -72,7 +75,7 @@ public class GdalRasterReprojectDialog extends BaseTransformDialog {
   @Override
   public String open() {
     shell = new Shell(getParent(), SWT.DIALOG_TRIM | SWT.RESIZE | SWT.MIN | SWT.MAX);
-    shell.setMinimumSize(980, 920);
+    shell.setMinimumSize(920, 780);
     PropsUi.setLook(shell);
     setShellImage(shell, input);
     shell.setText("Raster Reproject");
@@ -119,7 +122,7 @@ public class GdalRasterReprojectDialog extends BaseTransformDialog {
     RasterDialogUiSupport.TabSection inputTab = RasterDialogUiSupport.createTabSection(wTabFolder, "Input");
     RasterDialogUiSupport.TabSection outputTab = RasterDialogUiSupport.createTabSection(wTabFolder, "Output");
     RasterDialogUiSupport.TabSection spatialTab =
-        RasterDialogUiSupport.createTabSection(wTabFolder, "Spatial options");
+        RasterDialogUiSupport.createTabSection(wTabFolder, "Reproject options");
     RasterDialogUiSupport.TabSection remoteTab =
         RasterDialogUiSupport.createTabSection(wTabFolder, "Remote access");
     RasterDialogUiSupport.TabSection advancedTab =
@@ -140,6 +143,12 @@ public class GdalRasterReprojectDialog extends BaseTransformDialog {
     wInputValueMode.addModifyListener(e -> refreshEnabledStates());
     wOutputSourceMode.addModifyListener(e -> refreshEnabledStates());
     wOutputValueMode.addModifyListener(e -> refreshEnabledStates());
+    wOutputFormat.addModifyListener(
+        e -> {
+          RasterDialogUiSupport.refreshCompressionPresetChoices(
+              wCompressionPreset, wOutputFormat.getText(), wCompressionPreset.getText());
+          refreshEnabledStates();
+        });
     wSizingMode.addModifyListener(e -> refreshEnabledStates());
     wAuthType.addModifyListener(e -> refreshEnabledStates());
     wTabFolder.addListener(SWT.Selection, e -> refreshTabLayouts());
@@ -151,7 +160,11 @@ public class GdalRasterReprojectDialog extends BaseTransformDialog {
     wOk.addListener(SWT.Selection, e -> ok());
     wCancel.addListener(SWT.Selection, e -> cancel());
 
-    BaseDialog.defaultShellHandling(shell, c -> ok(), c -> cancel());
+    RasterDialogUiSupport.openManagedDialog(
+        shell, WINDOW_STATE_KEY, 920, 780, this::ok, () -> {
+          cancel();
+          return true;
+        });
     return transformName;
   }
 
@@ -163,6 +176,9 @@ public class GdalRasterReprojectDialog extends BaseTransformDialog {
     wInputValueMode.setItems(new String[] {"CONSTANT", "FIELD"});
     wOutputValueMode.setItems(new String[] {"CONSTANT", "FIELD"});
     wOutputFormat.setItems(RasterFormatCatalog.outputFormats().toArray(String[]::new));
+    RasterDialogUiSupport.refreshCompressionPresetChoices(
+        wCompressionPreset, wOutputFormat.getText(), RasterOutputOptionsSupport.COMPRESSION_DEFAULT);
+    wWriteMode.setItems(RasterOutputOptionsSupport.rasterAlgorithmWriteModes());
     wSizingMode.setItems(new String[] {"NONE", "RESOLUTION", "SIZE"});
     wAuthType.setItems(new String[] {"NONE", "BASIC_AUTH", "BEARER_TOKEN", "SIGNED_URL", "CUSTOM_HEADER"});
     wResamplingMethod.setItems(
@@ -184,7 +200,16 @@ public class GdalRasterReprojectDialog extends BaseTransformDialog {
     wOutputValue.setText(Utils.isEmpty(input.getOutputValue()) ? "" : input.getOutputValue());
     wOutputField.setText(Utils.isEmpty(input.getOutputField()) ? "" : input.getOutputField());
     wOutputFormat.setText(Utils.isEmpty(input.getOutputFormat()) ? "GTiff" : input.getOutputFormat());
-    wOverwrite.setSelection(input.isOverwrite());
+    RasterDialogUiSupport.refreshCompressionPresetChoices(
+        wCompressionPreset,
+        wOutputFormat.getText(),
+        Utils.isEmpty(input.getCompressionPreset())
+            ? RasterOutputOptionsSupport.COMPRESSION_DEFAULT
+            : input.getCompressionPreset());
+    wWriteMode.setText(
+        Utils.isEmpty(input.getOutputWriteMode())
+            ? RasterOutputOptionsSupport.WRITE_MODE_FAIL_IF_EXISTS
+            : input.getOutputWriteMode());
     wSourceCrs.setText(Utils.isEmpty(input.getSourceCrs()) ? "" : input.getSourceCrs());
     wTargetCrs.setText(Utils.isEmpty(input.getTargetCrs()) ? "" : input.getTargetCrs());
     wSizingMode.setText(Utils.isEmpty(input.getSizingMode()) ? "NONE" : input.getSizingMode());
@@ -242,8 +267,11 @@ public class GdalRasterReprojectDialog extends BaseTransformDialog {
     last =
         row(content, last, "Output format", middle, margin, w -> wOutputFormat = (ComboVar) w,
             parent -> new ComboVar(variables, parent, SWT.SINGLE | SWT.LEFT | SWT.BORDER));
-    row(content, last, "Overwrite output", middle, margin, w -> wOverwrite = (Button) w,
-        parent -> new Button(parent, SWT.CHECK));
+    last =
+        row(content, last, "Compression preset", middle, margin, w -> wCompressionPreset = (ComboVar) w,
+            parent -> new ComboVar(variables, parent, SWT.SINGLE | SWT.LEFT | SWT.BORDER));
+    row(content, last, "Write mode", middle, margin, w -> wWriteMode = (ComboVar) w,
+        parent -> new ComboVar(variables, parent, SWT.SINGLE | SWT.LEFT | SWT.BORDER));
   }
 
   private void buildSpatialTab(Composite content, int middle, int margin) {
@@ -333,6 +361,7 @@ public class GdalRasterReprojectDialog extends BaseTransformDialog {
     RasterDialogUiSupport.setValueModeState(wOutputValue, wbOutput, wOutputField, constantOutput, localOutput);
     RasterDialogUiSupport.setAuthState(
         wAuthType.getText(), wAuthUsername, wAuthPassword, wBearerToken, wHeaderName, wHeaderValue);
+    RasterDialogUiSupport.setControlEnabled(wCompressionPreset, wCompressionPreset.getItemCount() > 1);
 
     String sizingMode = wSizingMode.getText();
     boolean resolutionEnabled = "RESOLUTION".equalsIgnoreCase(sizingMode);
@@ -359,7 +388,8 @@ public class GdalRasterReprojectDialog extends BaseTransformDialog {
     input.setOutputValue(wOutputValue.getText());
     input.setOutputField(wOutputField.getText());
     input.setOutputFormat(wOutputFormat.getText());
-    input.setOverwrite(wOverwrite.getSelection());
+    input.setCompressionPreset(wCompressionPreset.getText());
+    input.setOutputWriteMode(wWriteMode.getText());
     input.setSourceCrs(wSourceCrs.getText());
     input.setTargetCrs(wTargetCrs.getText());
     input.setSizingMode(wSizingMode.getText());

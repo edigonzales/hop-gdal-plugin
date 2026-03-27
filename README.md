@@ -152,21 +152,22 @@ bleed across transform copies.
   - row-driven, JSON-first output
   - writes the full GDAL info JSON to `gdal_details_json`
 - `Raster Convert`
-  - wraps `gdal_translate`
+  - backed by `gdal raster convert`
   - intentionally focuses on format conversion plus friendly compression / tiling presets
 - `Raster Clip`
-  - uses `gdal_translate` for pixel-window clipping and `gdalwarp` for bounds / cutline clipping
+  - backed by `gdal raster clip`
+  - covers bounds, pixel window, inline geometry and template-dataset clipping
 - `Raster Reproject`
-  - wraps `gdalwarp`
+  - backed by `gdal raster reproject`
   - focuses on CRS change, target sizing and resampling
 - `Raster Resize`
-  - wraps `gdal_translate`
+  - backed by `gdal raster resize`
   - focuses on output size or output resolution changes
 - `Raster Mosaic`
-  - wraps `gdalbuildvrt`
+  - backed by `gdal raster mosaic`
   - V1 is intentionally VRT-only and expects a raster list per row, not grouped multi-row aggregation
 - `Rasterize Vector`
-  - wraps `gdal_rasterize`
+  - backed by `gdal vector rasterize`
   - supports dataset/layer input and Hop geometry field input
   - Hop geometry rows are materialized to `/vsimem/` vector datasets
 

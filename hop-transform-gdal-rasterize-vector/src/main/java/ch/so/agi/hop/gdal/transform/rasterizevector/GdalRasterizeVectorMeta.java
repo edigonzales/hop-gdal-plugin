@@ -4,6 +4,7 @@ import ch.so.agi.hop.gdal.raster.core.AbstractGdalRasterMeta;
 import ch.so.agi.hop.gdal.raster.core.AdditionalArgsParser;
 import ch.so.agi.hop.gdal.raster.core.BoundsSpec;
 import ch.so.agi.hop.gdal.raster.core.CreationOptionParser;
+import ch.so.agi.hop.gdal.raster.core.RasterOutputOptionsSupport;
 import ch.so.agi.hop.gdal.raster.core.RasterTransformSupport;
 import java.util.List;
 import org.apache.hop.core.CheckResult;
@@ -43,6 +44,8 @@ public class GdalRasterizeVectorMeta
   @HopMetadataProperty private String outputValue;
   @HopMetadataProperty private String outputField;
   @HopMetadataProperty private String outputFormat;
+  @HopMetadataProperty private String compressionPreset;
+  @HopMetadataProperty private String outputWriteMode;
   @HopMetadataProperty private String gridMode;
   @HopMetadataProperty private String bounds;
   @HopMetadataProperty private String crs;
@@ -81,6 +84,8 @@ public class GdalRasterizeVectorMeta
     outputValue = "";
     outputField = "";
     outputFormat = "GTiff";
+    compressionPreset = RasterOutputOptionsSupport.COMPRESSION_DEFAULT;
+    outputWriteMode = RasterOutputOptionsSupport.WRITE_MODE_FAIL_IF_EXISTS;
     gridMode = "BOUNDS_RESOLUTION";
     bounds = "";
     crs = "";
@@ -157,6 +162,8 @@ public class GdalRasterizeVectorMeta
     }
 
     try {
+      RasterOutputOptionsSupport.validateWriteMode(
+          outputWriteMode, RasterOutputOptionsSupport.vectorRasterizeWriteModes(), "Rasterize vector");
       BoundsSpec.parse(bounds);
       CreationOptionParser.parse(creationOptions);
       CreationOptionParser.parseKeyValueMap(gdalConfigOptions);
@@ -288,6 +295,22 @@ public class GdalRasterizeVectorMeta
 
   public void setOutputFormat(String outputFormat) {
     this.outputFormat = outputFormat;
+  }
+
+  public String getCompressionPreset() {
+    return compressionPreset;
+  }
+
+  public void setCompressionPreset(String compressionPreset) {
+    this.compressionPreset = compressionPreset;
+  }
+
+  public String getOutputWriteMode() {
+    return outputWriteMode;
+  }
+
+  public void setOutputWriteMode(String outputWriteMode) {
+    this.outputWriteMode = RasterOutputOptionsSupport.normalizeConfiguredWriteMode(outputWriteMode);
   }
 
   public String getGridMode() {

@@ -14,6 +14,17 @@ class GdalRasterReprojectMetaTest {
     GdalRasterReprojectMeta meta = new GdalRasterReprojectMeta();
     meta.setDefault();
     assertEquals("NONE", meta.getSizingMode());
+    assertEquals("FAIL_IF_EXISTS", meta.getOutputWriteMode());
+  }
+
+  @Test
+  void outputWriteModeNormalizesValues() {
+    GdalRasterReprojectMeta meta = new GdalRasterReprojectMeta();
+    meta.setDefault();
+    meta.setOutputWriteMode("OVERWRITE");
+    assertEquals("OVERWRITE", meta.getOutputWriteMode());
+    meta.setOutputWriteMode("APPEND");
+    assertEquals("APPEND", meta.getOutputWriteMode());
   }
 
   @Test

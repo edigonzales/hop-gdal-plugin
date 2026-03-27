@@ -11,4 +11,4 @@ Use `Raster Convert` with:
 - Additional translate args:
   - `-stats`
 
-This maps to a `gdal_translate`-style job and produces a Cloud Optimized GeoTIFF directly.
+This maps to `gdal raster convert` and produces a Cloud Optimized GeoTIFF directly.

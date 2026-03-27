@@ -50,11 +50,12 @@ public class GdalRasterInfoTransform
             this::resolveConstant);
 
     List<String> args = new ArrayList<>(AdditionalArgsParser.parse(resolveConstant(meta.getAdditionalInfoArgs())));
-    if (!args.contains("-json")) {
-      args.add(0, "-json");
+    if (!args.contains("--output-format") && !args.contains("-f") && !args.contains("--format")) {
+      args.add(0, "json");
+      args.add(0, "--output-format");
     }
 
-    String json = gdalClient().info(input, remoteAccess, args);
+    String json = gdalClient().rasterInfo(input, remoteAccess, args);
     return RasterTransformResult.success(System.currentTimeMillis() - start, input.value(), null, json);
   }
 }

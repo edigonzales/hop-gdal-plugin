@@ -2,12 +2,12 @@ package ch.so.agi.hop.gdal.transform.rasterclip;
 
 import ch.so.agi.hop.gdal.raster.core.RasterDialogUiSupport;
 import ch.so.agi.hop.gdal.raster.core.RasterFormatCatalog;
+import ch.so.agi.hop.gdal.raster.core.RasterOutputOptionsSupport;
 import java.util.List;
 import org.apache.hop.core.util.Utils;
 import org.apache.hop.core.variables.IVariables;
 import org.apache.hop.pipeline.PipelineMeta;
 import org.apache.hop.ui.core.PropsUi;
-import org.apache.hop.ui.core.dialog.BaseDialog;
 import org.apache.hop.ui.core.widget.ComboVar;
 import org.apache.hop.ui.core.widget.TextVar;
 import org.apache.hop.ui.pipeline.transform.BaseTransformDialog;
@@ -24,6 +24,8 @@ import org.eclipse.swt.widgets.TabFolder;
 import org.eclipse.swt.widgets.Text;
 
 public class GdalRasterClipDialog extends BaseTransformDialog {
+  private static final String WINDOW_STATE_KEY = "hop-gdal-raster-clip-dialog-v2";
+
   private final GdalRasterClipMeta input;
   private ComboVar wInputSourceMode;
   private ComboVar wInputValueMode;
@@ -36,13 +38,19 @@ public class GdalRasterClipDialog extends BaseTransformDialog {
   private Button wbOutput;
   private ComboVar wOutputField;
   private ComboVar wOutputFormat;
-  private Button wOverwrite;
+  private ComboVar wCompressionPreset;
+  private ComboVar wWriteMode;
   private ComboVar wClipMode;
+  private ComboVar wClipParameterSourceMode;
   private TextVar wBounds;
+  private ComboVar wBoundsField;
   private TextVar wPixelWindow;
+  private ComboVar wPixelWindowField;
   private TextVar wInlineGeometry;
+  private ComboVar wInlineGeometryField;
   private ComboVar wTemplateSourceMode;
   private TextVar wTemplateDatasetValue;
+  private ComboVar wTemplateDatasetField;
   private Button wbTemplateDataset;
   private TextVar wTemplateLayerName;
   private ComboVar wAuthType;
@@ -69,7 +77,7 @@ public class GdalRasterClipDialog extends BaseTransformDialog {
   @Override
   public String open() {
     shell = new Shell(getParent(), SWT.DIALOG_TRIM | SWT.RESIZE | SWT.MIN | SWT.MAX);
-    shell.setMinimumSize(980, 900);
+    shell.setMinimumSize(920, 780);
     PropsUi.setLook(shell);
     setShellImage(shell, input);
     shell.setText("Raster Clip");
@@ -137,7 +145,14 @@ public class GdalRasterClipDialog extends BaseTransformDialog {
     wInputValueMode.addModifyListener(e -> refreshEnabledStates());
     wOutputSourceMode.addModifyListener(e -> refreshEnabledStates());
     wOutputValueMode.addModifyListener(e -> refreshEnabledStates());
+    wOutputFormat.addModifyListener(
+        e -> {
+          RasterDialogUiSupport.refreshCompressionPresetChoices(
+              wCompressionPreset, wOutputFormat.getText(), wCompressionPreset.getText());
+          refreshEnabledStates();
+        });
     wClipMode.addModifyListener(e -> refreshEnabledStates());
+    wClipParameterSourceMode.addModifyListener(e -> refreshEnabledStates());
     wTemplateSourceMode.addModifyListener(e -> refreshEnabledStates());
     wAuthType.addModifyListener(e -> refreshEnabledStates());
     wTabFolder.addListener(SWT.Selection, e -> refreshTabLayouts());
@@ -150,7 +165,11 @@ public class GdalRasterClipDialog extends BaseTransformDialog {
     wOk.addListener(SWT.Selection, e -> ok());
     wCancel.addListener(SWT.Selection, e -> cancel());
 
-    BaseDialog.defaultShellHandling(shell, c -> ok(), c -> cancel());
+    RasterDialogUiSupport.openManagedDialog(
+        shell, WINDOW_STATE_KEY, 920, 780, this::ok, () -> {
+          cancel();
+          return true;
+        });
     return transformName;
   }
 
@@ -163,13 +182,21 @@ public class GdalRasterClipDialog extends BaseTransformDialog {
     wInputValueMode.setItems(new String[] {"CONSTANT", "FIELD"});
     wOutputValueMode.setItems(new String[] {"CONSTANT", "FIELD"});
     wOutputFormat.setItems(RasterFormatCatalog.outputFormats().toArray(String[]::new));
+    RasterDialogUiSupport.refreshCompressionPresetChoices(
+        wCompressionPreset, wOutputFormat.getText(), RasterOutputOptionsSupport.COMPRESSION_DEFAULT);
+    wWriteMode.setItems(RasterOutputOptionsSupport.rasterAlgorithmWriteModes());
     wClipMode.setItems(new String[] {"BOUNDING_BOX", "PIXEL_WINDOW", "INLINE_GEOMETRY", "TEMPLATE_DATASET"});
+    wClipParameterSourceMode.setItems(new String[] {"CONSTANT", "FIELD"});
     wAuthType.setItems(new String[] {"NONE", "BASIC_AUTH", "BEARER_TOKEN", "SIGNED_URL", "CUSTOM_HEADER"});
   }
 
   private void loadFields() {
     BaseTransformDialog.getFieldsFromPrevious(variables, wInputField, pipelineMeta, transformMeta);
     BaseTransformDialog.getFieldsFromPrevious(variables, wOutputField, pipelineMeta, transformMeta);
+    BaseTransformDialog.getFieldsFromPrevious(variables, wBoundsField, pipelineMeta, transformMeta);
+    BaseTransformDialog.getFieldsFromPrevious(variables, wPixelWindowField, pipelineMeta, transformMeta);
+    BaseTransformDialog.getFieldsFromPrevious(variables, wInlineGeometryField, pipelineMeta, transformMeta);
+    BaseTransformDialog.getFieldsFromPrevious(variables, wTemplateDatasetField, pipelineMeta, transformMeta);
   }
 
   private void getData() {
@@ -182,15 +209,33 @@ public class GdalRasterClipDialog extends BaseTransformDialog {
     wOutputValue.setText(Utils.isEmpty(input.getOutputValue()) ? "" : input.getOutputValue());
     wOutputField.setText(Utils.isEmpty(input.getOutputField()) ? "" : input.getOutputField());
     wOutputFormat.setText(Utils.isEmpty(input.getOutputFormat()) ? "GTiff" : input.getOutputFormat());
-    wOverwrite.setSelection(input.isOverwrite());
+    RasterDialogUiSupport.refreshCompressionPresetChoices(
+        wCompressionPreset,
+        wOutputFormat.getText(),
+        Utils.isEmpty(input.getCompressionPreset())
+            ? RasterOutputOptionsSupport.COMPRESSION_DEFAULT
+            : input.getCompressionPreset());
+    wWriteMode.setText(
+        Utils.isEmpty(input.getOutputWriteMode())
+            ? RasterOutputOptionsSupport.WRITE_MODE_FAIL_IF_EXISTS
+            : input.getOutputWriteMode());
     wClipMode.setText(Utils.isEmpty(input.getClipMode()) ? "BOUNDING_BOX" : input.getClipMode());
+    wClipParameterSourceMode.setText(
+        Utils.isEmpty(input.getClipParameterSourceMode()) ? "CONSTANT" : input.getClipParameterSourceMode());
     wBounds.setText(Utils.isEmpty(input.getBounds()) ? "" : input.getBounds());
+    wBoundsField.setText(Utils.isEmpty(input.getBoundsField()) ? "" : input.getBoundsField());
     wPixelWindow.setText(Utils.isEmpty(input.getPixelWindow()) ? "" : input.getPixelWindow());
+    wPixelWindowField.setText(
+        Utils.isEmpty(input.getPixelWindowField()) ? "" : input.getPixelWindowField());
     wInlineGeometry.setText(Utils.isEmpty(input.getInlineGeometry()) ? "" : input.getInlineGeometry());
+    wInlineGeometryField.setText(
+        Utils.isEmpty(input.getInlineGeometryField()) ? "" : input.getInlineGeometryField());
     wTemplateSourceMode.setText(
         Utils.isEmpty(input.getTemplateSourceMode()) ? "LOCAL_FILE" : input.getTemplateSourceMode());
     wTemplateDatasetValue.setText(
         Utils.isEmpty(input.getTemplateDatasetValue()) ? "" : input.getTemplateDatasetValue());
+    wTemplateDatasetField.setText(
+        Utils.isEmpty(input.getTemplateDatasetField()) ? "" : input.getTemplateDatasetField());
     wTemplateLayerName.setText(
         Utils.isEmpty(input.getTemplateLayerName()) ? "" : input.getTemplateLayerName());
     wAuthType.setText(Utils.isEmpty(input.getAuthType()) ? "NONE" : input.getAuthType());
@@ -295,14 +340,23 @@ public class GdalRasterClipDialog extends BaseTransformDialog {
             margin,
             w -> wOutputFormat = (ComboVar) w,
             parent -> new ComboVar(variables, parent, SWT.SINGLE | SWT.LEFT | SWT.BORDER));
+    last =
+        row(
+            content,
+            last,
+            "Compression preset",
+            middle,
+            margin,
+            w -> wCompressionPreset = (ComboVar) w,
+            parent -> new ComboVar(variables, parent, SWT.SINGLE | SWT.LEFT | SWT.BORDER));
     row(
         content,
         last,
-        "Overwrite output",
+        "Write mode",
         middle,
         margin,
-        w -> wOverwrite = (Button) w,
-        parent -> new Button(parent, SWT.CHECK));
+        w -> wWriteMode = (ComboVar) w,
+        parent -> new ComboVar(variables, parent, SWT.SINGLE | SWT.LEFT | SWT.BORDER));
   }
 
   private void buildClipTab(Composite content, int middle, int margin) {
@@ -320,11 +374,29 @@ public class GdalRasterClipDialog extends BaseTransformDialog {
         row(
             content,
             last,
+            "Clip parameter source",
+            middle,
+            margin,
+            w -> wClipParameterSourceMode = (ComboVar) w,
+            parent -> new ComboVar(variables, parent, SWT.SINGLE | SWT.LEFT | SWT.BORDER));
+    last =
+        row(
+            content,
+            last,
             "Bounds",
             middle,
             margin,
             w -> wBounds = (TextVar) w,
             parent -> new TextVar(variables, parent, SWT.SINGLE | SWT.LEFT | SWT.BORDER));
+    last =
+        row(
+            content,
+            last,
+            "Bounds field",
+            middle,
+            margin,
+            w -> wBoundsField = (ComboVar) w,
+            parent -> new ComboVar(variables, parent, SWT.SINGLE | SWT.LEFT | SWT.BORDER));
     last =
         row(
             content,
@@ -338,11 +410,29 @@ public class GdalRasterClipDialog extends BaseTransformDialog {
         row(
             content,
             last,
+            "Pixel window field",
+            middle,
+            margin,
+            w -> wPixelWindowField = (ComboVar) w,
+            parent -> new ComboVar(variables, parent, SWT.SINGLE | SWT.LEFT | SWT.BORDER));
+    last =
+        row(
+            content,
+            last,
             "Inline geometry (WKT)",
             middle,
             margin,
             w -> wInlineGeometry = (TextVar) w,
             parent -> new TextVar(variables, parent, SWT.SINGLE | SWT.LEFT | SWT.BORDER));
+    last =
+        row(
+            content,
+            last,
+            "Inline geometry field",
+            middle,
+            margin,
+            w -> wInlineGeometryField = (ComboVar) w,
+            parent -> new ComboVar(variables, parent, SWT.SINGLE | SWT.LEFT | SWT.BORDER));
     last =
         row(
             content,
@@ -362,6 +452,15 @@ public class GdalRasterClipDialog extends BaseTransformDialog {
             w -> wTemplateDatasetValue = (TextVar) w,
             b -> wbTemplateDataset = b,
             parent -> new TextVar(variables, parent, SWT.SINGLE | SWT.LEFT | SWT.BORDER));
+    last =
+        row(
+            content,
+            last,
+            "Template dataset field",
+            middle,
+            margin,
+            w -> wTemplateDatasetField = (ComboVar) w,
+            parent -> new ComboVar(variables, parent, SWT.SINGLE | SWT.LEFT | SWT.BORDER));
     last =
         row(
             content,
@@ -495,20 +594,32 @@ public class GdalRasterClipDialog extends BaseTransformDialog {
     RasterDialogUiSupport.setValueModeState(wOutputValue, wbOutput, wOutputField, constantOutput, localOutput);
     RasterDialogUiSupport.setAuthState(
         wAuthType.getText(), wAuthUsername, wAuthPassword, wBearerToken, wHeaderName, wHeaderValue);
+    RasterDialogUiSupport.setControlEnabled(wCompressionPreset, wCompressionPreset.getItemCount() > 1);
 
     String clipMode = wClipMode.getText();
     boolean boundsEnabled = "BOUNDING_BOX".equalsIgnoreCase(clipMode);
     boolean pixelWindowEnabled = "PIXEL_WINDOW".equalsIgnoreCase(clipMode);
     boolean inlineGeometryEnabled = "INLINE_GEOMETRY".equalsIgnoreCase(clipMode);
     boolean templateEnabled = "TEMPLATE_DATASET".equalsIgnoreCase(clipMode);
+    boolean constantClipParameter = !"FIELD".equalsIgnoreCase(wClipParameterSourceMode.getText());
     boolean localTemplate = "LOCAL_FILE".equalsIgnoreCase(wTemplateSourceMode.getText());
 
-    RasterDialogUiSupport.setTextEditable(wBounds, boundsEnabled);
-    RasterDialogUiSupport.setTextEditable(wPixelWindow, pixelWindowEnabled);
-    RasterDialogUiSupport.setTextEditable(wInlineGeometry, inlineGeometryEnabled);
-    RasterDialogUiSupport.setControlEnabled(wTemplateSourceMode, templateEnabled);
-    RasterDialogUiSupport.setTextEditable(wTemplateDatasetValue, templateEnabled);
-    RasterDialogUiSupport.setControlEnabled(wbTemplateDataset, templateEnabled && localTemplate);
+    RasterDialogUiSupport.setControlEnabled(wClipParameterSourceMode, true);
+    RasterDialogUiSupport.setValueModeState(
+        wBounds, null, wBoundsField, boundsEnabled, constantClipParameter, false);
+    RasterDialogUiSupport.setValueModeState(
+        wPixelWindow, null, wPixelWindowField, pixelWindowEnabled, constantClipParameter, false);
+    RasterDialogUiSupport.setValueModeState(
+        wInlineGeometry, null, wInlineGeometryField, inlineGeometryEnabled, constantClipParameter, false);
+    RasterDialogUiSupport.setControlEnabled(
+        wTemplateSourceMode, templateEnabled && constantClipParameter);
+    RasterDialogUiSupport.setValueModeState(
+        wTemplateDatasetValue,
+        wbTemplateDataset,
+        wTemplateDatasetField,
+        templateEnabled,
+        constantClipParameter,
+        templateEnabled && constantClipParameter && localTemplate);
     RasterDialogUiSupport.setTextEditable(wTemplateLayerName, templateEnabled);
     refreshTabLayouts();
   }
@@ -528,13 +639,19 @@ public class GdalRasterClipDialog extends BaseTransformDialog {
     input.setOutputValue(wOutputValue.getText());
     input.setOutputField(wOutputField.getText());
     input.setOutputFormat(wOutputFormat.getText());
-    input.setOverwrite(wOverwrite.getSelection());
+    input.setCompressionPreset(wCompressionPreset.getText());
+    input.setOutputWriteMode(wWriteMode.getText());
     input.setClipMode(wClipMode.getText());
+    input.setClipParameterSourceMode(wClipParameterSourceMode.getText());
     input.setBounds(wBounds.getText());
+    input.setBoundsField(wBoundsField.getText());
     input.setPixelWindow(wPixelWindow.getText());
+    input.setPixelWindowField(wPixelWindowField.getText());
     input.setInlineGeometry(wInlineGeometry.getText());
+    input.setInlineGeometryField(wInlineGeometryField.getText());
     input.setTemplateSourceMode(wTemplateSourceMode.getText());
     input.setTemplateDatasetValue(wTemplateDatasetValue.getText());
+    input.setTemplateDatasetField(wTemplateDatasetField.getText());
     input.setTemplateLayerName(wTemplateLayerName.getText());
     input.setAuthType(wAuthType.getText());
     input.setAuthUsername(wAuthUsername.getText());
@@ -582,7 +699,8 @@ public class GdalRasterClipDialog extends BaseTransformDialog {
 
   private void browseTemplate() {
     if (!"LOCAL_FILE".equalsIgnoreCase(wTemplateSourceMode.getText())
-        || !"TEMPLATE_DATASET".equalsIgnoreCase(wClipMode.getText())) {
+        || !"TEMPLATE_DATASET".equalsIgnoreCase(wClipMode.getText())
+        || !"CONSTANT".equalsIgnoreCase(wClipParameterSourceMode.getText())) {
       return;
     }
     FileDialog dialog = new FileDialog(shell, SWT.OPEN);

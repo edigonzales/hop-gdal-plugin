@@ -10,7 +10,6 @@ import org.apache.hop.core.variables.IVariables;
 import org.apache.hop.i18n.BaseMessages;
 import org.apache.hop.pipeline.PipelineMeta;
 import org.apache.hop.ui.core.PropsUi;
-import org.apache.hop.ui.core.dialog.BaseDialog;
 import org.apache.hop.ui.core.dialog.ErrorDialog;
 import org.apache.hop.ui.core.widget.ComboVar;
 import org.apache.hop.ui.core.widget.TextVar;
@@ -31,6 +30,7 @@ import java.util.List;
 
 public class GdalRasterInfoDialog extends BaseTransformDialog {
   private static final Class<?> PKG = GdalRasterInfoMeta.class;
+  private static final String WINDOW_STATE_KEY = "hop-gdal-raster-info-dialog-v2";
 
   private final GdalRasterInfoMeta input;
   private final DefaultRasterGdalClient gdalClient = new DefaultRasterGdalClient();
@@ -63,7 +63,7 @@ public class GdalRasterInfoDialog extends BaseTransformDialog {
   public String open() {
     Shell parent = getParent();
     shell = new Shell(parent, SWT.DIALOG_TRIM | SWT.RESIZE | SWT.MIN | SWT.MAX);
-    shell.setMinimumSize(920, 780);
+    shell.setMinimumSize(820, 660);
     PropsUi.setLook(shell);
     setShellImage(shell, input);
 
@@ -141,7 +141,11 @@ public class GdalRasterInfoDialog extends BaseTransformDialog {
     wCancel.addListener(SWT.Selection, e -> cancel());
     wTest.addListener(SWT.Selection, e -> testDataset());
 
-    BaseDialog.defaultShellHandling(shell, c -> ok(), c -> cancel());
+    RasterDialogUiSupport.openManagedDialog(
+        shell, WINDOW_STATE_KEY, 820, 660, this::ok, () -> {
+          cancel();
+          return true;
+        });
     return transformName;
   }
 
@@ -386,7 +390,8 @@ public class GdalRasterInfoDialog extends BaseTransformDialog {
               wHeaderValue.getText(),
               wGdalConfigOptions.getText(),
               value -> value);
-      String json = gdalClient.info(datasetRef, remoteAccess, java.util.List.of("-json"));
+      String json =
+          gdalClient.rasterInfo(datasetRef, remoteAccess, java.util.List.of("--output-format", "json"));
       TextDialog.show(shell, BaseMessages.getString(PKG, "GdalRasterInfoDialog.Test.Title"), json);
     } catch (Exception e) {
       new ErrorDialog(

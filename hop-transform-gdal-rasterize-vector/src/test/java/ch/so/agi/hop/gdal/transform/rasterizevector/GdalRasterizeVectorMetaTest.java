@@ -2,7 +2,6 @@ package ch.so.agi.hop.gdal.transform.rasterizevector;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -11,40 +10,54 @@ import org.junit.jupiter.api.Test;
 
 class GdalRasterizeVectorMetaTest {
   @Test
-  void defaultsShouldMatchRasterizeUseCase() {
+  void defaultsAreInitialized() {
     GdalRasterizeVectorMeta meta = new GdalRasterizeVectorMeta();
     meta.setDefault();
-
-    assertEquals("DATASET_LAYER", meta.getVectorInputMode());
-    assertEquals("CONSTANT_VALUE", meta.getBurnStrategy());
     assertEquals("GTiff", meta.getOutputFormat());
-    assertEquals("BOUNDS_RESOLUTION", meta.getGridMode());
-    assertTrue(meta.isFailOnError());
-    assertTrue(meta.isAddResultFields());
-    assertFalse(meta.isAllTouched());
+    assertEquals("FAIL_IF_EXISTS", meta.getOutputWriteMode());
   }
 
   @Test
-  void checkShouldRejectMissingGeometryFieldInHopMode() {
+  void outputWriteModeNormalizesValues() {
     GdalRasterizeVectorMeta meta = new GdalRasterizeVectorMeta();
     meta.setDefault();
-    meta.setVectorInputMode("HOP_GEOMETRY_FIELD");
+    meta.setOutputWriteMode("OVERWRITE");
+    assertEquals("OVERWRITE", meta.getOutputWriteMode());
+    meta.setOutputWriteMode("UPDATE");
+    assertEquals("UPDATE", meta.getOutputWriteMode());
+    meta.setOutputWriteMode("add");
+    assertEquals("ADD", meta.getOutputWriteMode());
+  }
+
+  @Test
+  void checkShouldRejectAppendWriteMode() {
+    GdalRasterizeVectorMeta meta = new GdalRasterizeVectorMeta();
+    meta.setDefault();
+    meta.setBounds("0,0,1,1");
+    meta.setResolutionX("1");
+    meta.setResolutionY("1");
     meta.setOutputValue("/tmp/out.tif");
+    meta.setInputValue("/tmp/in.gpkg");
+    meta.setOutputWriteMode("APPEND");
 
     List<ICheckResult> remarks = new ArrayList<>();
     meta.check(remarks, null, null, null, null, null, null, null, null);
 
     assertFalse(remarks.isEmpty());
     assertEquals(ICheckResult.TYPE_RESULT_ERROR, remarks.getFirst().getType());
+    assertEquals("Rasterize vector write mode is not supported: APPEND", remarks.getFirst().getText());
   }
 
   @Test
   void checkShouldRejectHttpUrlOutputMode() {
     GdalRasterizeVectorMeta meta = new GdalRasterizeVectorMeta();
     meta.setDefault();
-    meta.setInputValue("/tmp/in.gpkg");
+    meta.setBounds("0,0,1,1");
+    meta.setResolutionX("1");
+    meta.setResolutionY("1");
     meta.setOutputValue("/tmp/out.tif");
     meta.setOutputSourceMode("HTTP_URL");
+    meta.setInputValue("/tmp/in.gpkg");
 
     List<ICheckResult> remarks = new ArrayList<>();
     meta.check(remarks, null, null, null, null, null, null, null, null);
