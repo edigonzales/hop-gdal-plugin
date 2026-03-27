@@ -23,6 +23,10 @@ public final class RasterOutputOptionsSupport {
     };
   }
 
+  public static String[] vectorAlgorithmWriteModes() {
+    return new String[] {WRITE_MODE_FAIL_IF_EXISTS, WRITE_MODE_OVERWRITE};
+  }
+
   public static String normalizeConfiguredWriteMode(String mode) {
     if (mode == null) {
       return null;
@@ -84,6 +88,13 @@ public final class RasterOutputOptionsSupport {
     }
     if (WRITE_MODE_ADD.equalsIgnoreCase(normalized)) {
       args.add("--add");
+    }
+  }
+
+  public static void addVectorAlgorithmWriteModeArgs(List<String> args, String writeMode) {
+    String normalized = normalizeConfiguredWriteMode(writeMode);
+    if (WRITE_MODE_OVERWRITE.equalsIgnoreCase(normalized)) {
+      args.add("--overwrite");
     }
   }
 

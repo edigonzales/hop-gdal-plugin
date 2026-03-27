@@ -57,6 +57,12 @@
       <version>${project.version}</version>
       <scope>runtime</scope>
     </dependency>
+    <dependency>
+      <groupId>ch.so.agi</groupId>
+      <artifactId>hop-transform-gdal-raster-zonal-stats</artifactId>
+      <version>${project.version}</version>
+      <scope>runtime</scope>
+    </dependency>
 
     <dependency>
       <groupId>ch.so.agi</groupId>

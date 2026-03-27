@@ -16,6 +16,7 @@ Apache Hop 2.17 plugin suite for GDAL/OGR-based vector and raster transforms on 
   - `Raster Resize`
   - `Raster Mosaic`
   - `Rasterize Vector`
+  - `Raster Zonal Stats`
 - GDAL suite
   - all vector and raster transforms in one shared installable ZIP
 
@@ -38,6 +39,7 @@ modules live beside them in the same Maven reactor.
 - `hop-transform-gdal-raster-resize`
 - `hop-transform-gdal-raster-buildvrt`
 - `hop-transform-gdal-rasterize-vector`
+- `hop-transform-gdal-raster-zonal-stats`
 - `assemblies/`
   - Vector suite ZIPs.
   - Raster suite ZIPs.
@@ -62,7 +64,7 @@ cd /Users/stefan/sources/gdal-java-bindings
 ```
 
 The bindings themselves also target Java 23 and expose the raster APIs required by this repo:
-`info`, `translate`, `warp`, `buildVrt`, `rasterize`, `DatasetRef`, `GdalConfig` and
+`info`, `translate`, `warp`, `buildVrt`, `rasterize`, `zonal-stats`, `DatasetRef`, `GdalConfig` and
 `ScopedGdalConfig`.
 
 ## Install in Hop

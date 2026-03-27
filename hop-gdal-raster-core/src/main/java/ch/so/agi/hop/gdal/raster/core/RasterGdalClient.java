@@ -21,6 +21,14 @@ public interface RasterGdalClient {
       List<DatasetRef> inputs, DatasetRef output, RemoteAccessSpec remoteAccess, List<String> args)
       throws Exception;
 
+  void rasterZonalStats(
+      DatasetRef rasterInput,
+      DatasetRef zonesInput,
+      DatasetRef output,
+      RemoteAccessSpec remoteAccess,
+      List<String> args)
+      throws Exception;
+
   void vectorRasterize(
       DatasetRef vectorInput, DatasetRef output, RemoteAccessSpec remoteAccess, List<String> args)
       throws Exception;

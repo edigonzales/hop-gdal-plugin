@@ -23,6 +23,7 @@
     <module>hop-transform-gdal-raster-resize</module>
     <module>hop-transform-gdal-raster-buildvrt</module>
     <module>hop-transform-gdal-rasterize-vector</module>
+    <module>hop-transform-gdal-raster-zonal-stats</module>
     <module>assemblies</module>
   </modules>
 

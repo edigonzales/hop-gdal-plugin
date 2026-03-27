@@ -83,6 +83,24 @@ public class DefaultRasterGdalClient implements RasterGdalClient {
   }
 
   @Override
+  public void rasterZonalStats(
+      DatasetRef rasterInput,
+      DatasetRef zonesInput,
+      DatasetRef output,
+      RemoteAccessSpec remoteAccess,
+      List<String> args)
+      throws Exception {
+    OgrBindingsClassLoaderSupport.withPluginContextClassLoader(
+        () ->
+            Gdal.rasterZonalStats(
+                toBindingDatasetRef(output),
+                toBindingDatasetRef(rasterInput),
+                toBindingDatasetRef(zonesInput),
+                toBindingConfig(remoteAccess),
+                args.toArray(String[]::new)));
+  }
+
+  @Override
   public void vectorRasterize(
       DatasetRef vectorInput, DatasetRef output, RemoteAccessSpec remoteAccess, List<String> args)
       throws Exception {

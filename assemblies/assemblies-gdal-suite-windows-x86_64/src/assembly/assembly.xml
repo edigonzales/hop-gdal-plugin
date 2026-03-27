@@ -24,6 +24,7 @@
         <include>ch.so.agi:hop-transform-gdal-raster-resize</include>
         <include>ch.so.agi:hop-transform-gdal-raster-buildvrt</include>
         <include>ch.so.agi:hop-transform-gdal-rasterize-vector</include>
+        <include>ch.so.agi:hop-transform-gdal-raster-zonal-stats</include>
       </includes>
     </dependencySet>
     <dependencySet>
@@ -43,6 +44,7 @@
         <exclude>ch.so.agi:hop-transform-gdal-raster-resize</exclude>
         <exclude>ch.so.agi:hop-transform-gdal-raster-buildvrt</exclude>
         <exclude>ch.so.agi:hop-transform-gdal-rasterize-vector</exclude>
+        <exclude>ch.so.agi:hop-transform-gdal-raster-zonal-stats</exclude>
       </excludes>
     </dependencySet>
   </dependencySets>
