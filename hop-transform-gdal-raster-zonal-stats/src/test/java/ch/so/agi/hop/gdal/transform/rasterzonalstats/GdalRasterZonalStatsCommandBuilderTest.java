@@ -4,9 +4,17 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertIterableEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
+import ch.so.agi.gdal.ffm.OgrFieldDefinition;
+import ch.so.agi.gdal.ffm.OgrFieldType;
+import ch.so.agi.gdal.ffm.OgrLayerDefinition;
 import ch.so.agi.hop.gdal.raster.core.DatasetRef;
+import ch.so.agi.hop.gdal.raster.core.DatasetRefType;
+import ch.so.agi.hop.gdal.raster.core.DefaultRasterGdalClient;
+import ch.so.agi.hop.gdal.raster.core.GdalConfigOptions;
 import ch.so.agi.hop.gdal.raster.core.RemoteAccessSpec;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.Test;
 
 class GdalRasterZonalStatsCommandBuilderTest {
@@ -96,5 +104,30 @@ class GdalRasterZonalStatsCommandBuilderTest {
     assertEquals(
         "Zones layer is required because the dataset contains multiple layers: /tmp/buildings.gpkg",
         error.getMessage());
+  }
+
+  @Test
+  void remoteZonesInspectorPassesRemoteConfigToBindings() throws Exception {
+    AtomicReference<ch.so.agi.gdal.ffm.GdalConfig> capturedConfig = new AtomicReference<>();
+    OgrZonesMetadataInspector inspector =
+        new OgrZonesMetadataInspector(
+            new DefaultRasterGdalClient(),
+            (zones, config) -> {
+              capturedConfig.set(config);
+              return List.of(
+                  new OgrLayerDefinition(
+                      "zones", 0, List.of(new OgrFieldDefinition("egid", OgrFieldType.INTEGER))));
+            });
+
+    ZoneLayerMetadata metadata =
+        inspector.inspect(
+            new DatasetRef(DatasetRefType.HTTP_URL, "https://example.com/zones.gpkg"),
+            null,
+            new RemoteAccessSpec(
+                null, new GdalConfigOptions(Map.of("GDAL_DISABLE_READDIR_ON_OPEN", "EMPTY_DIR"))));
+
+    assertEquals("zones", metadata.layerName());
+    assertIterableEquals(List.of("egid"), metadata.fieldNames());
+    assertEquals("EMPTY_DIR", capturedConfig.get().options().get("GDAL_DISABLE_READDIR_ON_OPEN"));
   }
 }

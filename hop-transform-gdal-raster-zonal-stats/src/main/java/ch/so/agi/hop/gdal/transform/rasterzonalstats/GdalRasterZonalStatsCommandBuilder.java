@@ -1,5 +1,6 @@
 package ch.so.agi.hop.gdal.transform.rasterzonalstats;
 
+import ch.so.agi.gdal.ffm.GdalConfig;
 import ch.so.agi.gdal.ffm.Ogr;
 import ch.so.agi.gdal.ffm.OgrDataSource;
 import ch.so.agi.gdal.ffm.OgrFieldDefinition;
@@ -16,6 +17,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.function.Function;
 import org.apache.hop.core.row.IRowMeta;
 
@@ -164,51 +166,67 @@ record ZoneLayerMetadata(String layerName, List<String> fieldNames) {
 }
 
 final class OgrZonesMetadataInspector implements ZonesMetadataInspector {
-  private final DefaultRasterGdalClient bindingAdapter = new DefaultRasterGdalClient();
+  private final DefaultRasterGdalClient bindingAdapter;
+  private final OgrZonesOpener zonesOpener;
+
+  OgrZonesMetadataInspector() {
+    this(
+        new DefaultRasterGdalClient(),
+        (zones, config) ->
+            OgrBindingsClassLoaderSupport.withPluginContextClassLoader(
+                () -> {
+                  try (OgrDataSource dataSource = Ogr.open(zones, Map.of(), config)) {
+                    return dataSource.listLayers();
+                  }
+                }));
+  }
+
+  OgrZonesMetadataInspector(DefaultRasterGdalClient bindingAdapter, OgrZonesOpener zonesOpener) {
+    this.bindingAdapter = Objects.requireNonNull(bindingAdapter, "bindingAdapter must not be null");
+    this.zonesOpener = Objects.requireNonNull(zonesOpener, "zonesOpener must not be null");
+  }
 
   @Override
   public ZoneLayerMetadata inspect(
       DatasetRef zones, String requestedLayerName, RemoteAccessSpec remoteAccess) throws Exception {
     String normalizedRequestedLayer = RasterTransformSupport.trimToNull(requestedLayerName);
-    return OgrBindingsClassLoaderSupport.withPluginContextClassLoader(
-        () -> {
-          try (OgrDataSource dataSource =
-              Ogr.open(
-                  bindingAdapter.toBindingDatasetRef(zones),
-                  Map.of(),
-                  bindingAdapter.toBindingConfig(remoteAccess))) {
-            List<OgrLayerDefinition> layers = dataSource.listLayers();
-            if (layers.isEmpty()) {
-              throw new IllegalArgumentException(
-                  "Zones dataset does not contain any vector layers: " + zones.value());
-            }
+    List<OgrLayerDefinition> layers =
+        zonesOpener.listLayers(
+            bindingAdapter.toBindingDatasetRef(zones), bindingAdapter.toBindingConfig(remoteAccess, zones));
+    if (layers.isEmpty()) {
+      throw new IllegalArgumentException(
+          "Zones dataset does not contain any vector layers: " + zones.value());
+    }
 
-            OgrLayerDefinition selectedLayer;
-            if (normalizedRequestedLayer == null) {
-              if (layers.size() > 1) {
-                throw new IllegalArgumentException(
-                    "Zones layer is required because the dataset contains multiple layers: "
-                        + zones.value());
-              }
-              selectedLayer = layers.getFirst();
-            } else {
-              selectedLayer =
-                  layers.stream()
-                      .filter(layer -> layer.name().equals(normalizedRequestedLayer))
-                      .findFirst()
-                      .orElseThrow(
-                          () ->
-                              new IllegalArgumentException(
-                                  "Zones layer was not found in dataset "
-                                      + zones.value()
-                                      + ": "
-                                      + normalizedRequestedLayer));
-            }
+    OgrLayerDefinition selectedLayer;
+    if (normalizedRequestedLayer == null) {
+      if (layers.size() > 1) {
+        throw new IllegalArgumentException(
+            "Zones layer is required because the dataset contains multiple layers: "
+                + zones.value());
+      }
+      selectedLayer = layers.getFirst();
+    } else {
+      selectedLayer =
+          layers.stream()
+              .filter(layer -> layer.name().equals(normalizedRequestedLayer))
+              .findFirst()
+              .orElseThrow(
+                  () ->
+                      new IllegalArgumentException(
+                          "Zones layer was not found in dataset "
+                              + zones.value()
+                              + ": "
+                              + normalizedRequestedLayer));
+    }
 
-            return new ZoneLayerMetadata(
-                selectedLayer.name(),
-                selectedLayer.fields().stream().map(OgrFieldDefinition::name).toList());
-          }
-        });
+    return new ZoneLayerMetadata(
+        selectedLayer.name(),
+        selectedLayer.fields().stream().map(OgrFieldDefinition::name).toList());
   }
+}
+
+interface OgrZonesOpener {
+  List<OgrLayerDefinition> listLayers(
+      ch.so.agi.gdal.ffm.DatasetRef zones, GdalConfig config) throws Exception;
 }

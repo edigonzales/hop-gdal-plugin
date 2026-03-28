@@ -14,7 +14,9 @@ public class DefaultRasterGdalClient implements RasterGdalClient {
     return OgrBindingsClassLoaderSupport.withPluginContextClassLoader(
         () ->
             Gdal.rasterInfo(
-                toBindingDatasetRef(input), toBindingConfig(remoteAccess), args.toArray(String[]::new)));
+                toBindingDatasetRef(input),
+                toBindingConfig(remoteAccess, input),
+                args.toArray(String[]::new)));
   }
 
   @Override
@@ -26,7 +28,7 @@ public class DefaultRasterGdalClient implements RasterGdalClient {
             Gdal.rasterConvert(
                 toBindingDatasetRef(output),
                 toBindingDatasetRef(input),
-                toBindingConfig(remoteAccess),
+                toBindingConfig(remoteAccess, input, output),
                 args.toArray(String[]::new)));
   }
 
@@ -39,7 +41,7 @@ public class DefaultRasterGdalClient implements RasterGdalClient {
             Gdal.rasterClip(
                 toBindingDatasetRef(output),
                 toBindingDatasetRef(input),
-                toBindingConfig(remoteAccess),
+                toBindingConfig(remoteAccess, input, output),
                 args.toArray(String[]::new)));
   }
 
@@ -52,7 +54,7 @@ public class DefaultRasterGdalClient implements RasterGdalClient {
             Gdal.rasterReproject(
                 toBindingDatasetRef(output),
                 toBindingDatasetRef(input),
-                toBindingConfig(remoteAccess),
+                toBindingConfig(remoteAccess, input, output),
                 args.toArray(String[]::new)));
   }
 
@@ -65,7 +67,7 @@ public class DefaultRasterGdalClient implements RasterGdalClient {
             Gdal.rasterResize(
                 toBindingDatasetRef(output),
                 toBindingDatasetRef(input),
-                toBindingConfig(remoteAccess),
+                toBindingConfig(remoteAccess, input, output),
                 args.toArray(String[]::new)));
   }
 
@@ -78,7 +80,7 @@ public class DefaultRasterGdalClient implements RasterGdalClient {
             Gdal.rasterMosaic(
                 toBindingDatasetRef(output),
                 inputs.stream().map(this::toBindingDatasetRef).toList(),
-                toBindingConfig(remoteAccess),
+                toBindingConfig(remoteAccess, combineDatasetRefs(inputs, output)),
                 args.toArray(String[]::new)));
   }
 
@@ -96,7 +98,7 @@ public class DefaultRasterGdalClient implements RasterGdalClient {
                 toBindingDatasetRef(output),
                 toBindingDatasetRef(rasterInput),
                 toBindingDatasetRef(zonesInput),
-                toBindingConfig(remoteAccess),
+                toBindingConfig(remoteAccess, rasterInput, zonesInput, output),
                 args.toArray(String[]::new)));
   }
 
@@ -109,7 +111,7 @@ public class DefaultRasterGdalClient implements RasterGdalClient {
             Gdal.vectorRasterize(
                 toBindingDatasetRef(output),
                 toBindingDatasetRef(vectorInput),
-                toBindingConfig(remoteAccess),
+                toBindingConfig(remoteAccess, vectorInput, output),
                 args.toArray(String[]::new)));
   }
 
@@ -122,13 +124,16 @@ public class DefaultRasterGdalClient implements RasterGdalClient {
   }
 
   public ch.so.agi.gdal.ffm.GdalConfig toBindingConfig(RemoteAccessSpec remoteAccess) {
+    return toBindingConfig(remoteAccess, new DatasetRef[0]);
+  }
+
+  public ch.so.agi.gdal.ffm.GdalConfig toBindingConfig(
+      RemoteAccessSpec remoteAccess, DatasetRef... datasetRefs) {
     ch.so.agi.gdal.ffm.GdalConfig config = ch.so.agi.gdal.ffm.GdalConfig.empty();
-    if (remoteAccess == null) {
-      return config;
-    }
+    RemoteAccessSpec effectiveRemoteAccess = remoteAccess == null ? RemoteAccessSpec.empty() : remoteAccess;
 
     Map<String, String> authConfig = new LinkedHashMap<>();
-    AuthConfigSpec auth = remoteAccess.authConfig();
+    AuthConfigSpec auth = effectiveRemoteAccess.authConfig();
     switch (auth.type()) {
       case BASIC_AUTH -> {
         requireValue(auth.username(), "Basic auth username");
@@ -153,10 +158,24 @@ public class DefaultRasterGdalClient implements RasterGdalClient {
     if (!authConfig.isEmpty()) {
       config = config.withConfig(authConfig);
     }
-    if (remoteAccess.configOptions() != null && !remoteAccess.configOptions().isEmpty()) {
-      config = config.withConfig(remoteAccess.configOptions().values());
+
+    Map<String, String> userConfig =
+        effectiveRemoteAccess.configOptions() == null
+            ? Map.of()
+            : effectiveRemoteAccess.configOptions().values();
+    if (!userConfig.isEmpty()) {
+      config = config.withConfig(userConfig);
     }
     return config;
+  }
+
+  private static DatasetRef[] combineDatasetRefs(List<DatasetRef> inputs, DatasetRef output) {
+    DatasetRef[] refs = new DatasetRef[inputs.size() + 1];
+    for (int i = 0; i < inputs.size(); i++) {
+      refs[i] = inputs.get(i);
+    }
+    refs[inputs.size()] = output;
+    return refs;
   }
 
   private static void requireValue(String value, String label) {
