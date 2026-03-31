@@ -9,7 +9,9 @@ import java.util.List;
 import org.apache.hop.core.CheckResult;
 import org.apache.hop.core.ICheckResult;
 import org.apache.hop.core.annotations.Transform;
+import org.apache.hop.core.exception.HopTransformException;
 import org.apache.hop.core.row.IRowMeta;
+import org.apache.hop.core.row.RowMeta;
 import org.apache.hop.core.variables.IVariables;
 import org.apache.hop.metadata.api.HopMetadataProperty;
 import org.apache.hop.metadata.api.IHopMetadataProvider;
@@ -27,16 +29,23 @@ import org.apache.hop.pipeline.transform.TransformMeta;
     keywords = {"raster", "zonal", "stats", "mean", "gdal"})
 public class GdalRasterZonalStatsMeta
     extends AbstractGdalRasterMeta<GdalRasterZonalStatsTransform, GdalRasterZonalStatsData> {
+  static final String OUTPUT_MODE_VECTOR_DATASET = "VECTOR_DATASET";
+  static final String OUTPUT_MODE_ROW_FIELDS = "ROW_FIELDS";
+  static final String ZONES_INPUT_MODE_DATASET_LAYER = "DATASET_LAYER";
+  static final String ZONES_INPUT_MODE_HOP_GEOMETRY_FIELD = "HOP_GEOMETRY_FIELD";
 
   @HopMetadataProperty private String inputSourceMode;
   @HopMetadataProperty private String inputValueMode;
   @HopMetadataProperty private String inputValue;
   @HopMetadataProperty private String inputField;
+  @HopMetadataProperty private String outputMode;
+  @HopMetadataProperty private String zonesInputMode;
   @HopMetadataProperty private String zonesSourceMode;
   @HopMetadataProperty private String zonesValueMode;
   @HopMetadataProperty private String zonesValue;
   @HopMetadataProperty private String zonesField;
   @HopMetadataProperty private String zonesLayer;
+  @HopMetadataProperty private String geometryField;
   @HopMetadataProperty private String outputSourceMode;
   @HopMetadataProperty private String outputValueMode;
   @HopMetadataProperty private String outputValue;
@@ -66,11 +75,14 @@ public class GdalRasterZonalStatsMeta
     inputValueMode = "CONSTANT";
     inputValue = "";
     inputField = "";
+    outputMode = OUTPUT_MODE_VECTOR_DATASET;
+    zonesInputMode = ZONES_INPUT_MODE_DATASET_LAYER;
     zonesSourceMode = "LOCAL_FILE";
     zonesValueMode = "CONSTANT";
     zonesValue = "";
     zonesField = "";
     zonesLayer = "";
+    geometryField = "";
     outputSourceMode = "LOCAL_FILE";
     outputValueMode = "CONSTANT";
     outputValue = "";
@@ -116,43 +128,75 @@ public class GdalRasterZonalStatsMeta
       remarks.add(new CheckResult(ICheckResult.TYPE_RESULT_ERROR, "Input raster is required", transformMeta));
       return;
     }
-    if ("FIELD".equalsIgnoreCase(zonesValueMode) && (zonesField == null || zonesField.isBlank())) {
-      remarks.add(new CheckResult(ICheckResult.TYPE_RESULT_ERROR, "Zones field is required", transformMeta));
-      return;
-    }
-    if (!"FIELD".equalsIgnoreCase(zonesValueMode) && (zonesValue == null || zonesValue.isBlank())) {
-      remarks.add(new CheckResult(ICheckResult.TYPE_RESULT_ERROR, "Zones dataset is required", transformMeta));
-      return;
-    }
-    if ("FIELD".equalsIgnoreCase(outputValueMode) && (outputField == null || outputField.isBlank())) {
-      remarks.add(new CheckResult(ICheckResult.TYPE_RESULT_ERROR, "Output field is required", transformMeta));
-      return;
-    }
-    if (!"FIELD".equalsIgnoreCase(outputValueMode) && (outputValue == null || outputValue.isBlank())) {
-      remarks.add(new CheckResult(ICheckResult.TYPE_RESULT_ERROR, "Output vector dataset is required", transformMeta));
-      return;
-    }
-    try {
-      RasterTransformSupport.validateOutputSourceMode(outputSourceMode);
-    } catch (IllegalArgumentException e) {
-      remarks.add(new CheckResult(ICheckResult.TYPE_RESULT_ERROR, e.getMessage(), transformMeta));
-      return;
+
+    if (isRowFieldsOutputMode()) {
+      if (!isHopGeometryZonesMode()) {
+        remarks.add(
+            new CheckResult(
+                ICheckResult.TYPE_RESULT_ERROR,
+                "Row output mode only supports Hop geometry field zones",
+                transformMeta));
+        return;
+      }
+      if (geometryField == null || geometryField.isBlank()) {
+        remarks.add(new CheckResult(ICheckResult.TYPE_RESULT_ERROR, "Geometry field is required", transformMeta));
+        return;
+      }
+    } else {
+      if (isHopGeometryZonesMode()) {
+        remarks.add(
+            new CheckResult(
+                ICheckResult.TYPE_RESULT_ERROR,
+                "Hop geometry field zones are only supported with Row output mode",
+                transformMeta));
+        return;
+      }
+      if ("FIELD".equalsIgnoreCase(zonesValueMode) && (zonesField == null || zonesField.isBlank())) {
+        remarks.add(new CheckResult(ICheckResult.TYPE_RESULT_ERROR, "Zones field is required", transformMeta));
+        return;
+      }
+      if (!"FIELD".equalsIgnoreCase(zonesValueMode) && (zonesValue == null || zonesValue.isBlank())) {
+        remarks.add(new CheckResult(ICheckResult.TYPE_RESULT_ERROR, "Zones dataset is required", transformMeta));
+        return;
+      }
+      if ("FIELD".equalsIgnoreCase(outputValueMode) && (outputField == null || outputField.isBlank())) {
+        remarks.add(new CheckResult(ICheckResult.TYPE_RESULT_ERROR, "Output field is required", transformMeta));
+        return;
+      }
+      if (!"FIELD".equalsIgnoreCase(outputValueMode) && (outputValue == null || outputValue.isBlank())) {
+        remarks.add(
+            new CheckResult(ICheckResult.TYPE_RESULT_ERROR, "Output vector dataset is required", transformMeta));
+        return;
+      }
+      try {
+        RasterTransformSupport.validateOutputSourceMode(outputSourceMode);
+      } catch (IllegalArgumentException e) {
+        remarks.add(new CheckResult(ICheckResult.TYPE_RESULT_ERROR, e.getMessage(), transformMeta));
+        return;
+      }
     }
 
     try {
-      RasterOutputOptionsSupport.validateWriteMode(
-          outputWriteMode,
-          RasterOutputOptionsSupport.vectorAlgorithmWriteModes(),
-          "Raster zonal stats");
+      validateReferencedFields(prev);
       GdalRasterZonalStatsOptions.parseStats(stats);
       GdalRasterZonalStatsOptions.parseBands(bands);
       GdalRasterZonalStatsOptions.parseFields(includeFields);
       GdalRasterZonalStatsOptions.normalizePixels(pixelInclusion);
       GdalRasterZonalStatsOptions.normalizeStrategy(strategy);
-      CreationOptionParser.parse(creationOptions);
-      CreationOptionParser.parse(layerCreationOptions);
+      if (!isRowFieldsOutputMode()) {
+        RasterOutputOptionsSupport.validateWriteMode(
+            outputWriteMode,
+            RasterOutputOptionsSupport.vectorAlgorithmWriteModes(),
+            "Raster zonal stats");
+        CreationOptionParser.parse(creationOptions);
+        CreationOptionParser.parse(layerCreationOptions);
+      }
       CreationOptionParser.parseKeyValueMap(gdalConfigOptions);
       AdditionalArgsParser.parse(additionalArgs);
+      if (isRowFieldsOutputMode() && prev != null) {
+        GdalRasterZonalStatsRowFields.resolveZoneAttributeNames(prev, geometryField, includeFields);
+        validateNoRowFieldCollisions(prev);
+      }
     } catch (IllegalArgumentException e) {
       remarks.add(new CheckResult(ICheckResult.TYPE_RESULT_ERROR, e.getMessage(), transformMeta));
       return;
@@ -165,6 +209,75 @@ public class GdalRasterZonalStatsMeta
             transformMeta));
   }
 
+  @Override
+  public void getFields(
+      IRowMeta rowMeta,
+      String origin,
+      IRowMeta[] info,
+      TransformMeta nextTransform,
+      IVariables variables,
+      IHopMetadataProvider metadataProvider)
+      throws HopTransformException {
+    if (isRowFieldsOutputMode()) {
+      GdalRasterZonalStatsRowFields.renameUpstreamTechnicalValueMetas(rowMeta);
+      GdalRasterZonalStatsRowFields.appendValueMetas(rowMeta, describeRowFields());
+      if (isAddResultFields()) {
+        GdalRasterZonalStatsRowFields.appendZonalStatsTechnicalValueMetas(rowMeta);
+      }
+      return;
+    }
+    super.getFields(rowMeta, origin, info, nextTransform, variables, metadataProvider);
+  }
+
+  List<GdalRasterZonalStatsRowFields.RowFieldSpec> describeRowFields() {
+    return GdalRasterZonalStatsRowFields.describe(stats, bands);
+  }
+
+  private void validateNoRowFieldCollisions(IRowMeta prev) {
+    try {
+      RowMeta outputPreview = (RowMeta) prev.clone();
+      GdalRasterZonalStatsRowFields.renameUpstreamTechnicalValueMetas(outputPreview);
+      GdalRasterZonalStatsRowFields.appendValueMetas(outputPreview, describeRowFields());
+      if (isAddResultFields()) {
+        GdalRasterZonalStatsRowFields.appendZonalStatsTechnicalValueMetas(outputPreview);
+      }
+    } catch (HopTransformException e) {
+      throw new IllegalArgumentException(e.getMessage(), e);
+    }
+  }
+
+  private void validateReferencedFields(IRowMeta prev) {
+    if (prev == null) {
+      return;
+    }
+
+    if ("FIELD".equalsIgnoreCase(inputValueMode) && prev.indexOfValue(inputField) < 0) {
+      throw new IllegalArgumentException("Input field was not found: " + inputField);
+    }
+
+    if (isRowFieldsOutputMode()) {
+      if (prev.indexOfValue(geometryField) < 0) {
+        throw new IllegalArgumentException("Geometry field was not found: " + geometryField);
+      }
+      return;
+    }
+
+    if ("FIELD".equalsIgnoreCase(zonesValueMode) && prev.indexOfValue(zonesField) < 0) {
+      throw new IllegalArgumentException("Zones field was not found: " + zonesField);
+    }
+    if ("FIELD".equalsIgnoreCase(outputValueMode) && prev.indexOfValue(outputField) < 0) {
+      throw new IllegalArgumentException("Output field was not found: " + outputField);
+    }
+  }
+
+  public boolean isRowFieldsOutputMode() {
+    return OUTPUT_MODE_ROW_FIELDS.equalsIgnoreCase(outputMode);
+  }
+
+  public boolean isHopGeometryZonesMode() {
+    return ZONES_INPUT_MODE_HOP_GEOMETRY_FIELD.equalsIgnoreCase(zonesInputMode);
+  }
+
   public String getInputSourceMode() { return inputSourceMode; }
   public void setInputSourceMode(String inputSourceMode) { this.inputSourceMode = inputSourceMode; }
   public String getInputValueMode() { return inputValueMode; }
@@ -173,6 +286,10 @@ public class GdalRasterZonalStatsMeta
   public void setInputValue(String inputValue) { this.inputValue = inputValue; }
   public String getInputField() { return inputField; }
   public void setInputField(String inputField) { this.inputField = inputField; }
+  public String getOutputMode() { return outputMode; }
+  public void setOutputMode(String outputMode) { this.outputMode = outputMode; }
+  public String getZonesInputMode() { return zonesInputMode; }
+  public void setZonesInputMode(String zonesInputMode) { this.zonesInputMode = zonesInputMode; }
   public String getZonesSourceMode() { return zonesSourceMode; }
   public void setZonesSourceMode(String zonesSourceMode) { this.zonesSourceMode = zonesSourceMode; }
   public String getZonesValueMode() { return zonesValueMode; }
@@ -183,6 +300,8 @@ public class GdalRasterZonalStatsMeta
   public void setZonesField(String zonesField) { this.zonesField = zonesField; }
   public String getZonesLayer() { return zonesLayer; }
   public void setZonesLayer(String zonesLayer) { this.zonesLayer = zonesLayer; }
+  public String getGeometryField() { return geometryField; }
+  public void setGeometryField(String geometryField) { this.geometryField = geometryField; }
   public String getOutputSourceMode() { return outputSourceMode; }
   public void setOutputSourceMode(String outputSourceMode) { this.outputSourceMode = outputSourceMode; }
   public String getOutputValueMode() { return outputValueMode; }

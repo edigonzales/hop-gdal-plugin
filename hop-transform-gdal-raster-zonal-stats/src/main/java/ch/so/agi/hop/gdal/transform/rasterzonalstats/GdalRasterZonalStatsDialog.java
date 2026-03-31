@@ -29,17 +29,20 @@ public class GdalRasterZonalStatsDialog extends BaseTransformDialog {
   private static final String WINDOW_STATE_KEY = "hop-gdal-raster-zonal-stats-dialog-v1";
 
   private final GdalRasterZonalStatsMeta input;
+  private ComboVar wOutputMode;
   private ComboVar wInputSourceMode;
   private ComboVar wInputValueMode;
   private TextVar wInputValue;
   private Button wbInput;
   private ComboVar wInputField;
+  private ComboVar wZonesInputMode;
   private ComboVar wZonesSourceMode;
   private ComboVar wZonesValueMode;
   private TextVar wZonesValue;
   private Button wbZones;
   private ComboVar wZonesField;
   private TextVar wZonesLayer;
+  private ComboVar wGeometryField;
   private ComboVar wOutputSourceMode;
   private ComboVar wOutputValueMode;
   private TextVar wOutputValue;
@@ -142,8 +145,10 @@ public class GdalRasterZonalStatsDialog extends BaseTransformDialog {
     getData();
     loadFormats();
 
+    wOutputMode.addModifyListener(e -> refreshEnabledStates());
     wInputSourceMode.addModifyListener(e -> refreshEnabledStates());
     wInputValueMode.addModifyListener(e -> refreshEnabledStates());
+    wZonesInputMode.addModifyListener(e -> refreshEnabledStates());
     wZonesSourceMode.addModifyListener(e -> refreshEnabledStates());
     wZonesValueMode.addModifyListener(e -> refreshEnabledStates());
     wOutputSourceMode.addModifyListener(e -> refreshEnabledStates());
@@ -171,8 +176,18 @@ public class GdalRasterZonalStatsDialog extends BaseTransformDialog {
     String[] inputModes = {"LOCAL_FILE", "HTTP_URL", "GDAL_VSI"};
     String[] outputModes = {"LOCAL_FILE", "GDAL_VSI"};
     String[] valueModes = {"CONSTANT", "FIELD"};
+    wOutputMode.setItems(
+        new String[] {
+          GdalRasterZonalStatsMeta.OUTPUT_MODE_VECTOR_DATASET,
+          GdalRasterZonalStatsMeta.OUTPUT_MODE_ROW_FIELDS
+        });
     wInputSourceMode.setItems(inputModes);
     wInputValueMode.setItems(valueModes);
+    wZonesInputMode.setItems(
+        new String[] {
+          GdalRasterZonalStatsMeta.ZONES_INPUT_MODE_DATASET_LAYER,
+          GdalRasterZonalStatsMeta.ZONES_INPUT_MODE_HOP_GEOMETRY_FIELD
+        });
     wZonesSourceMode.setItems(inputModes);
     wZonesValueMode.setItems(valueModes);
     wOutputSourceMode.setItems(outputModes);
@@ -185,6 +200,7 @@ public class GdalRasterZonalStatsDialog extends BaseTransformDialog {
 
   private void loadFields() {
     BaseTransformDialog.getFieldsFromPrevious(variables, wInputField, pipelineMeta, transformMeta);
+    BaseTransformDialog.getFieldsFromPrevious(variables, wGeometryField, pipelineMeta, transformMeta);
     BaseTransformDialog.getFieldsFromPrevious(variables, wZonesField, pipelineMeta, transformMeta);
     BaseTransformDialog.getFieldsFromPrevious(variables, wOutputField, pipelineMeta, transformMeta);
   }
@@ -223,15 +239,24 @@ public class GdalRasterZonalStatsDialog extends BaseTransformDialog {
   }
 
   private void getData() {
+    wOutputMode.setText(
+        Utils.isEmpty(input.getOutputMode())
+            ? GdalRasterZonalStatsMeta.OUTPUT_MODE_VECTOR_DATASET
+            : input.getOutputMode());
     wInputSourceMode.setText(Utils.isEmpty(input.getInputSourceMode()) ? "LOCAL_FILE" : input.getInputSourceMode());
     wInputValueMode.setText(Utils.isEmpty(input.getInputValueMode()) ? "CONSTANT" : input.getInputValueMode());
     wInputValue.setText(Utils.isEmpty(input.getInputValue()) ? "" : input.getInputValue());
     wInputField.setText(Utils.isEmpty(input.getInputField()) ? "" : input.getInputField());
+    wZonesInputMode.setText(
+        Utils.isEmpty(input.getZonesInputMode())
+            ? GdalRasterZonalStatsMeta.ZONES_INPUT_MODE_DATASET_LAYER
+            : input.getZonesInputMode());
     wZonesSourceMode.setText(Utils.isEmpty(input.getZonesSourceMode()) ? "LOCAL_FILE" : input.getZonesSourceMode());
     wZonesValueMode.setText(Utils.isEmpty(input.getZonesValueMode()) ? "CONSTANT" : input.getZonesValueMode());
     wZonesValue.setText(Utils.isEmpty(input.getZonesValue()) ? "" : input.getZonesValue());
     wZonesField.setText(Utils.isEmpty(input.getZonesField()) ? "" : input.getZonesField());
     wZonesLayer.setText(Utils.isEmpty(input.getZonesLayer()) ? "" : input.getZonesLayer());
+    wGeometryField.setText(Utils.isEmpty(input.getGeometryField()) ? "" : input.getGeometryField());
     wOutputSourceMode.setText(Utils.isEmpty(input.getOutputSourceMode()) ? "LOCAL_FILE" : input.getOutputSourceMode());
     wOutputValueMode.setText(Utils.isEmpty(input.getOutputValueMode()) ? "CONSTANT" : input.getOutputValueMode());
     wOutputValue.setText(Utils.isEmpty(input.getOutputValue()) ? "" : input.getOutputValue());
@@ -274,6 +299,15 @@ public class GdalRasterZonalStatsDialog extends BaseTransformDialog {
         row(
             content,
             last,
+            "Output mode",
+            middle,
+            margin,
+            w -> wOutputMode = (ComboVar) w,
+            parent -> new ComboVar(variables, parent, SWT.SINGLE | SWT.LEFT | SWT.BORDER));
+    last =
+        row(
+            content,
+            last,
             "Input source mode",
             middle,
             margin,
@@ -311,6 +345,15 @@ public class GdalRasterZonalStatsDialog extends BaseTransformDialog {
         row(
             content,
             last,
+            "Zones input mode",
+            middle,
+            margin,
+            w -> wZonesInputMode = (ComboVar) w,
+            parent -> new ComboVar(variables, parent, SWT.SINGLE | SWT.LEFT | SWT.BORDER));
+    last =
+        row(
+            content,
+            last,
             "Zones source mode",
             middle,
             margin,
@@ -343,6 +386,15 @@ public class GdalRasterZonalStatsDialog extends BaseTransformDialog {
             middle,
             margin,
             w -> wZonesField = (ComboVar) w,
+            parent -> new ComboVar(variables, parent, SWT.SINGLE | SWT.LEFT | SWT.BORDER));
+    last =
+        row(
+            content,
+            last,
+            "Geometry field",
+            middle,
+            margin,
+            w -> wGeometryField = (ComboVar) w,
             parent -> new ComboVar(variables, parent, SWT.SINGLE | SWT.LEFT | SWT.BORDER));
     row(
         content,
@@ -584,6 +636,10 @@ public class GdalRasterZonalStatsDialog extends BaseTransformDialog {
   }
 
   private void refreshEnabledStates() {
+    boolean rowOutput = GdalRasterZonalStatsMeta.OUTPUT_MODE_ROW_FIELDS.equalsIgnoreCase(wOutputMode.getText());
+    boolean hopGeometryZones =
+        GdalRasterZonalStatsMeta.ZONES_INPUT_MODE_HOP_GEOMETRY_FIELD.equalsIgnoreCase(
+            wZonesInputMode.getText());
     boolean constantInput = !"FIELD".equalsIgnoreCase(wInputValueMode.getText());
     boolean constantZones = !"FIELD".equalsIgnoreCase(wZonesValueMode.getText());
     boolean constantOutput = !"FIELD".equalsIgnoreCase(wOutputValueMode.getText());
@@ -591,8 +647,21 @@ public class GdalRasterZonalStatsDialog extends BaseTransformDialog {
     boolean localZones = "LOCAL_FILE".equalsIgnoreCase(wZonesSourceMode.getText());
     boolean localOutput = "LOCAL_FILE".equalsIgnoreCase(wOutputSourceMode.getText());
     RasterDialogUiSupport.setValueModeState(wInputValue, wbInput, wInputField, constantInput, localInput);
-    RasterDialogUiSupport.setValueModeState(wZonesValue, wbZones, wZonesField, constantZones, localZones);
-    RasterDialogUiSupport.setValueModeState(wOutputValue, wbOutput, wOutputField, constantOutput, localOutput);
+    RasterDialogUiSupport.setValueModeState(
+        wZonesValue, wbZones, wZonesField, constantZones, localZones && !hopGeometryZones);
+    RasterDialogUiSupport.setValueModeState(
+        wOutputValue, wbOutput, wOutputField, constantOutput, localOutput && !rowOutput);
+    wZonesSourceMode.setEnabled(!hopGeometryZones);
+    wZonesValueMode.setEnabled(!hopGeometryZones);
+    wZonesLayer.setEnabled(!hopGeometryZones);
+    wGeometryField.setEnabled(hopGeometryZones);
+    wOutputSourceMode.setEnabled(!rowOutput);
+    wOutputValueMode.setEnabled(!rowOutput);
+    wOutputFormat.setEnabled(!rowOutput);
+    wOutputLayer.setEnabled(!rowOutput);
+    wWriteMode.setEnabled(!rowOutput);
+    wCreationOptions.setEnabled(!rowOutput);
+    wLayerCreationOptions.setEnabled(!rowOutput);
     RasterDialogUiSupport.setAuthState(
         wAuthType.getText(), wAuthUsername, wAuthPassword, wBearerToken, wHeaderName, wHeaderValue);
     refreshTabLayouts();
@@ -604,15 +673,18 @@ public class GdalRasterZonalStatsDialog extends BaseTransformDialog {
 
   private void ok() {
     transformName = wTransformName.getText();
+    input.setOutputMode(wOutputMode.getText());
     input.setInputSourceMode(wInputSourceMode.getText());
     input.setInputValueMode(wInputValueMode.getText());
     input.setInputValue(wInputValue.getText());
     input.setInputField(wInputField.getText());
+    input.setZonesInputMode(wZonesInputMode.getText());
     input.setZonesSourceMode(wZonesSourceMode.getText());
     input.setZonesValueMode(wZonesValueMode.getText());
     input.setZonesValue(wZonesValue.getText());
     input.setZonesField(wZonesField.getText());
     input.setZonesLayer(wZonesLayer.getText());
+    input.setGeometryField(wGeometryField.getText());
     input.setOutputSourceMode(wOutputSourceMode.getText());
     input.setOutputValueMode(wOutputValueMode.getText());
     input.setOutputValue(wOutputValue.getText());
@@ -658,6 +730,9 @@ public class GdalRasterZonalStatsDialog extends BaseTransformDialog {
   }
 
   private void browseZones() {
+    if (GdalRasterZonalStatsMeta.ZONES_INPUT_MODE_HOP_GEOMETRY_FIELD.equalsIgnoreCase(wZonesInputMode.getText())) {
+      return;
+    }
     if (!"LOCAL_FILE".equalsIgnoreCase(wZonesSourceMode.getText())
         || !"CONSTANT".equalsIgnoreCase(wZonesValueMode.getText())) {
       return;
@@ -670,6 +745,9 @@ public class GdalRasterZonalStatsDialog extends BaseTransformDialog {
   }
 
   private void browseOutput() {
+    if (GdalRasterZonalStatsMeta.OUTPUT_MODE_ROW_FIELDS.equalsIgnoreCase(wOutputMode.getText())) {
+      return;
+    }
     if (!"LOCAL_FILE".equalsIgnoreCase(wOutputSourceMode.getText())
         || !"CONSTANT".equalsIgnoreCase(wOutputValueMode.getText())) {
       return;

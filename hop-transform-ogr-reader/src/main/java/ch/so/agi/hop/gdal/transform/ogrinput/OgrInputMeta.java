@@ -1,7 +1,12 @@
 package ch.so.agi.hop.gdal.transform.ogrinput;
 
+import ch.so.agi.gdal.ffm.OgrFieldDefinition;
+import ch.so.agi.gdal.ffm.OgrLayerDefinition;
 import com.atolcd.hop.core.row.value.ValueMetaGeometry;
+import java.nio.file.Path;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 import org.apache.hop.core.CheckResult;
 import org.apache.hop.core.ICheckResult;
 import org.apache.hop.core.annotations.Transform;
@@ -29,6 +34,7 @@ import org.apache.hop.pipeline.transform.TransformMeta;
 public class OgrInputMeta extends BaseTransformMeta<OgrInput, OgrInputData> {
 
   private static final Class<?> PKG = OgrInputMeta.class;
+  private final SchemaResolver schemaResolver;
 
   @HopMetadataProperty private String fileName;
   @HopMetadataProperty private String layerName;
@@ -42,6 +48,14 @@ public class OgrInputMeta extends BaseTransformMeta<OgrInput, OgrInputData> {
   @HopMetadataProperty private String polygonWkt;
   @HopMetadataProperty private String featureLimit;
   @HopMetadataProperty private String openOptions;
+
+  public OgrInputMeta() {
+    this(DefaultSchemaResolver.INSTANCE);
+  }
+
+  OgrInputMeta(SchemaResolver schemaResolver) {
+    this.schemaResolver = Objects.requireNonNull(schemaResolver, "schemaResolver must not be null");
+  }
 
   @Override
   public void setDefault() {
@@ -67,12 +81,18 @@ public class OgrInputMeta extends BaseTransformMeta<OgrInput, OgrInputData> {
       IVariables variables,
       IHopMetadataProvider metadataProvider)
       throws HopTransformException {
-
+    List<OgrFieldDefinition> projectedFields = resolveProjectedFieldsBestEffort(variables);
     if (includeFid) {
       rowMeta.addValueMeta(new ValueMetaInteger(resolveFieldName(fidFieldName, "fid")));
     }
-    for (String selectedAttribute : OgrInputOptionsUtil.splitCsvOrSemicolon(selectedAttributes)) {
-      rowMeta.addValueMeta(new ValueMetaString(selectedAttribute));
+    if (projectedFields == null) {
+      for (String selectedAttribute : OgrInputOptionsUtil.splitCsvOrSemicolon(selectedAttributes)) {
+        rowMeta.addValueMeta(new ValueMetaString(selectedAttribute));
+      }
+    } else {
+      for (OgrFieldDefinition projectedField : projectedFields) {
+        rowMeta.addValueMeta(OgrInput.toHopValueMeta(projectedField));
+      }
     }
     rowMeta.addValueMeta(new ValueMetaGeometry(resolveFieldName(geometryFieldName, "geometry")));
   }
@@ -146,8 +166,56 @@ public class OgrInputMeta extends BaseTransformMeta<OgrInput, OgrInputData> {
     return fieldName == null || fieldName.isBlank() ? defaultName : fieldName.trim();
   }
 
+  private List<OgrFieldDefinition> resolveProjectedFieldsBestEffort(IVariables variables) {
+    String resolvedFileName = resolveVariable(variables, fileName);
+    if (resolvedFileName.isBlank()) {
+      return null;
+    }
+
+    try {
+      String resolvedLayerName = resolveVariable(variables, layerName);
+      String resolvedSelectedAttributes = resolveVariable(variables, selectedAttributes);
+      Map<String, String> resolvedOpenOptions =
+          OgrInputOptionsUtil.parseKeyValueOptions(resolveVariable(variables, openOptions));
+      return schemaResolver.resolveProjectedFields(
+          Path.of(resolvedFileName),
+          resolvedLayerName,
+          resolvedSelectedAttributes,
+          resolvedOpenOptions);
+    } catch (Exception e) {
+      if (isDebug()) {
+        logDebug("Unable to probe OGR schema for design-time fields, using fallback metadata: " + e.getMessage());
+      }
+      return null;
+    }
+  }
+
+  private String resolveVariable(IVariables variables, String value) {
+    if (value == null) {
+      return "";
+    }
+    return variables == null ? value.trim() : variables.resolve(value).trim();
+  }
+
   private boolean containsVariable(String value) {
     return value != null && value.contains("${");
+  }
+
+  interface SchemaResolver {
+    List<OgrFieldDefinition> resolveProjectedFields(
+        Path filePath, String requestedLayerName, String selectedAttributes, Map<String, String> openOptions);
+  }
+
+  private static final class DefaultSchemaResolver implements SchemaResolver {
+    private static final DefaultSchemaResolver INSTANCE = new DefaultSchemaResolver();
+
+    @Override
+    public List<OgrFieldDefinition> resolveProjectedFields(
+        Path filePath, String requestedLayerName, String selectedAttributes, Map<String, String> openOptions) {
+      List<OgrLayerDefinition> layers = OgrSchemaProbe.readLayers(filePath, openOptions);
+      OgrLayerDefinition layerDefinition = OgrSchemaProbe.resolveLayer(layers, requestedLayerName);
+      return OgrInput.selectProjectedFields(layerDefinition, selectedAttributes);
+    }
   }
 
   public String getFileName() {
