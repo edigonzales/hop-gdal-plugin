@@ -14,6 +14,8 @@ import com.atolcd.hop.gis.geometry.curve.CircularString;
 import com.atolcd.hop.gis.geometry.curve.CompoundCurve;
 import com.atolcd.hop.gis.geometry.curve.CurveGeometrySupport;
 import com.atolcd.hop.gis.geometry.curve.CurvePolygon;
+import com.atolcd.hop.gis.geometry.curve.MultiCurve;
+import com.atolcd.hop.gis.geometry.curve.MultiSurface;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Method;
 import java.nio.file.Path;
@@ -289,6 +291,12 @@ public class OgrOutput extends BaseTransform<OgrOutputMeta, OgrOutputData> {
     }
     if (geometry instanceof CurvePolygon) {
       return 10;
+    }
+    if (geometry instanceof MultiCurve) {
+      return 11;
+    }
+    if (geometry instanceof MultiSurface) {
+      return 12;
     }
     if (geometry instanceof Point) {
       return 1;

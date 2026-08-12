@@ -23,7 +23,12 @@ final class OgrOutputOptionsUtil {
           "MULTIPOINT",
           "MULTILINESTRING",
           "MULTIPOLYGON",
-          "GEOMETRYCOLLECTION");
+          "GEOMETRYCOLLECTION",
+          "CIRCULARSTRING",
+          "COMPOUNDCURVE",
+          "CURVEPOLYGON",
+          "MULTICURVE",
+          "MULTISURFACE");
 
   private OgrOutputOptionsUtil() {}
 
@@ -108,6 +113,11 @@ final class OgrOutputOptionsUtil {
       case "MULTILINESTRING" -> 5;
       case "MULTIPOLYGON" -> 6;
       case "GEOMETRYCOLLECTION" -> 7;
+      case "CIRCULARSTRING" -> 8;
+      case "COMPOUNDCURVE" -> 9;
+      case "CURVEPOLYGON" -> 10;
+      case "MULTICURVE" -> 11;
+      case "MULTISURFACE" -> 12;
       default -> throw new IllegalArgumentException("Unsupported forced geometry type: " + raw);
     };
   }
@@ -127,7 +137,12 @@ final class OgrOutputOptionsUtil {
             "MULTIPOINT",
             "MULTILINESTRING",
             "MULTIPOLYGON",
-            "GEOMETRYCOLLECTION");
+            "GEOMETRYCOLLECTION",
+            "CIRCULARSTRING",
+            "COMPOUNDCURVE",
+            "CURVEPOLYGON",
+            "MULTICURVE",
+            "MULTISURFACE");
     if (!allowed.contains(normalized.toUpperCase(java.util.Locale.ROOT))) {
       throw new IllegalArgumentException("Unsupported forced geometry type: " + raw);
     }

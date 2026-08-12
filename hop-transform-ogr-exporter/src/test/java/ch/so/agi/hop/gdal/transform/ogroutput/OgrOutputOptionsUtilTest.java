@@ -39,6 +39,20 @@ class OgrOutputOptionsUtilTest {
     assertEquals(-1, OgrOutputOptionsUtil.parseForcedGeometryTypeCode("AUTO"));
     assertEquals(1, OgrOutputOptionsUtil.parseForcedGeometryTypeCode("POINT"));
     assertEquals(6, OgrOutputOptionsUtil.parseForcedGeometryTypeCode("MULTIPOLYGON"));
+    assertEquals(8, OgrOutputOptionsUtil.parseForcedGeometryTypeCode("CIRCULARSTRING"));
+    assertEquals(9, OgrOutputOptionsUtil.parseForcedGeometryTypeCode("COMPOUNDCURVE"));
+    assertEquals(10, OgrOutputOptionsUtil.parseForcedGeometryTypeCode("CURVEPOLYGON"));
+    assertEquals(11, OgrOutputOptionsUtil.parseForcedGeometryTypeCode("MULTICURVE"));
+    assertEquals(12, OgrOutputOptionsUtil.parseForcedGeometryTypeCode("MULTISURFACE"));
+  }
+
+  @Test
+  void shouldExposeSqlMmCurveTypesInForceGeometrySelection() {
+    assertTrue(OgrOutputOptionsUtil.FORCE_GEOMETRY_VALUES.contains("CIRCULARSTRING"));
+    assertTrue(OgrOutputOptionsUtil.FORCE_GEOMETRY_VALUES.contains("COMPOUNDCURVE"));
+    assertTrue(OgrOutputOptionsUtil.FORCE_GEOMETRY_VALUES.contains("CURVEPOLYGON"));
+    assertTrue(OgrOutputOptionsUtil.FORCE_GEOMETRY_VALUES.contains("MULTICURVE"));
+    assertTrue(OgrOutputOptionsUtil.FORCE_GEOMETRY_VALUES.contains("MULTISURFACE"));
   }
 
   @Test
