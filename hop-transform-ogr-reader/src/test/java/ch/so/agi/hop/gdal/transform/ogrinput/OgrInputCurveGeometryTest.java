@@ -7,6 +7,7 @@ import ch.so.agi.gdal.ffm.OgrGeometry;
 import com.atolcd.hop.gis.geometry.curve.CircularString;
 import com.atolcd.hop.gis.geometry.curve.CurveGeometrySupport;
 import com.atolcd.hop.gis.geometry.curve.CurvePolygon;
+import com.atolcd.hop.gis.geometry.curve.CurveWkbReader;
 import com.atolcd.hop.gis.geometry.curve.MultiCurve;
 import com.atolcd.hop.gis.geometry.curve.MultiSurface;
 import java.util.HexFormat;
@@ -98,7 +99,7 @@ class OgrInputCurveGeometryTest {
   }
 
   private static CurvePolygon curvePolygon() {
-    return (CurvePolygon) CurveGeometrySupport.readWkbUnchecked(CURVE_POLYGON_WKB);
+    return (CurvePolygon) new CurveWkbReader().read(CURVE_POLYGON_WKB);
   }
 
   private static OgrInput newStandaloneInput() {
