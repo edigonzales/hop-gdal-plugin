@@ -52,6 +52,12 @@
     </dependency>
 
     <dependency>
+      <groupId>ch.so.agi</groupId>
+      <artifactId>hop-transform-ogr-reader</artifactId>
+      <version>${project.version}</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
       <groupId>org.junit.jupiter</groupId>
       <artifactId>junit-jupiter</artifactId>
       <scope>test</scope>
@@ -87,4 +93,29 @@
       </plugin>
     </plugins>
   </build>
+
+  <profiles>
+    <profile>
+      <id>native-e2e-linux-x86_64</id>
+      <dependencies>
+        <dependency>
+          <groupId>ch.so.agi</groupId>
+          <artifactId>gdal-ffm-natives-swiss</artifactId>
+          <version>${gdal.ffm.version}</version>
+          <classifier>natives-linux-x86_64</classifier>
+          <scope>test</scope>
+        </dependency>
+      </dependencies>
+      <build>
+        <plugins>
+          <plugin>
+            <artifactId>maven-surefire-plugin</artifactId>
+            <configuration>
+              <argLine>--enable-native-access=ALL-UNNAMED</argLine>
+            </configuration>
+          </plugin>
+        </plugins>
+      </build>
+    </profile>
+  </profiles>
 </project>
