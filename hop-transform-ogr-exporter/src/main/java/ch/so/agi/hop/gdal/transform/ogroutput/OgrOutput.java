@@ -10,6 +10,10 @@ import ch.so.agi.gdal.ffm.OgrLayerWriteSpec;
 import ch.so.agi.gdal.ffm.OgrLayerWriter;
 import ch.so.agi.gdal.ffm.OgrWriteMode;
 import ch.so.agi.hop.gdal.ogr.core.OgrBindingsClassLoaderSupport;
+import com.atolcd.hop.gis.geometry.curve.CircularString;
+import com.atolcd.hop.gis.geometry.curve.CompoundCurve;
+import com.atolcd.hop.gis.geometry.curve.CurveGeometrySupport;
+import com.atolcd.hop.gis.geometry.curve.CurvePolygon;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Method;
 import java.nio.file.Path;
@@ -37,19 +41,16 @@ import org.locationtech.jts.geom.MultiPoint;
 import org.locationtech.jts.geom.MultiPolygon;
 import org.locationtech.jts.geom.Point;
 import org.locationtech.jts.geom.Polygon;
-import org.locationtech.jts.io.ByteOrderValues;
 import org.locationtech.jts.io.ParseException;
-import org.locationtech.jts.io.WKBReader;
-import org.locationtech.jts.io.WKBWriter;
 
 public class OgrOutput extends BaseTransform<OgrOutputMeta, OgrOutputData> {
 
   private static final Class<?> PKG = OgrOutputMeta.class;
   private static final String JTS_GEOMETRY_CLASS_NAME = "org.locationtech.jts.geom.Geometry";
   private static final String JTS_WKB_WRITER_CLASS_NAME = "org.locationtech.jts.io.WKBWriter";
+  private static final String CURVE_GEOMETRY_SUPPORT_CLASS_NAME =
+      "com.atolcd.hop.gis.geometry.curve.CurveGeometrySupport";
 
-  private final WKBWriter wkbWriter = new WKBWriter(2, ByteOrderValues.LITTLE_ENDIAN, false);
-  private final WKBReader wkbReader = new WKBReader();
 
   public OgrOutput(
       TransformMeta transformMeta,
@@ -280,6 +281,15 @@ public class OgrOutput extends BaseTransform<OgrOutputMeta, OgrOutputData> {
     if (geometry == null) {
       return 0;
     }
+    if (geometry instanceof CircularString) {
+      return 8;
+    }
+    if (geometry instanceof CompoundCurve) {
+      return 9;
+    }
+    if (geometry instanceof CurvePolygon) {
+      return 10;
+    }
     if (geometry instanceof Point) {
       return 1;
     }
@@ -358,12 +368,12 @@ public class OgrOutput extends BaseTransform<OgrOutputMeta, OgrOutputData> {
     return geometry;
   }
 
-  private OgrGeometry toOgrGeometry(Geometry geometry) {
+  OgrGeometry toOgrGeometry(Geometry geometry) {
     if (geometry == null) {
       return null;
     }
 
-    byte[] wkb = wkbWriter.write(geometry);
+    byte[] wkb = CurveGeometrySupport.writeWkb(geometry);
     int srid = geometry.getSRID();
     if (srid > 0) {
       return OgrGeometry.fromWkb(wkb, srid);
@@ -467,7 +477,7 @@ public class OgrOutput extends BaseTransform<OgrOutputMeta, OgrOutputData> {
 
   private Geometry readGeometry(byte[] bytes) throws HopTransformException {
     try {
-      return wkbReader.read(bytes);
+      return CurveGeometrySupport.readWkb(bytes);
     } catch (ParseException e) {
       throw new HopTransformException(
           BaseMessages.getString(PKG, "OgrOutput.Transform.GeometryParseFailed"), e);
@@ -482,12 +492,7 @@ public class OgrOutput extends BaseTransform<OgrOutputMeta, OgrOutputData> {
       }
 
       ClassLoader foreignClassLoader = geometryValue.getClass().getClassLoader();
-      Class<?> foreignWkbWriterClass =
-          Class.forName(JTS_WKB_WRITER_CLASS_NAME, true, foreignClassLoader);
-      Constructor<?> constructor = foreignWkbWriterClass.getConstructor();
-      Object foreignWkbWriter = constructor.newInstance();
-      Method writeMethod = foreignWkbWriterClass.getMethod("write", geometryClass);
-      byte[] wkb = (byte[]) writeMethod.invoke(foreignWkbWriter, geometryValue);
+      byte[] wkb = writeForeignGeometry(geometryValue, geometryClass, foreignClassLoader);
 
       Geometry geometry = readGeometry(wkb);
       Method getSridMethod = geometryClass.getMethod("getSRID");
@@ -505,6 +510,24 @@ public class OgrOutput extends BaseTransform<OgrOutputMeta, OgrOutputData> {
               "OgrOutput.Transform.GeometryReflectionFailed",
               describeGeometryValue(geometryValue)),
           e);
+    }
+  }
+
+  private byte[] writeForeignGeometry(
+      Object geometryValue, Class<?> geometryClass, ClassLoader foreignClassLoader)
+      throws ReflectiveOperationException {
+    try {
+      Class<?> curveSupportClass =
+          Class.forName(CURVE_GEOMETRY_SUPPORT_CLASS_NAME, true, foreignClassLoader);
+      Method writeMethod = curveSupportClass.getMethod("writeWkb", geometryClass);
+      return (byte[]) writeMethod.invoke(null, geometryValue);
+    } catch (ClassNotFoundException | NoSuchMethodException e) {
+      Class<?> foreignWkbWriterClass =
+          Class.forName(JTS_WKB_WRITER_CLASS_NAME, true, foreignClassLoader);
+      Constructor<?> constructor = foreignWkbWriterClass.getConstructor();
+      Object foreignWkbWriter = constructor.newInstance();
+      Method writeMethod = foreignWkbWriterClass.getMethod("write", geometryClass);
+      return (byte[]) writeMethod.invoke(foreignWkbWriter, geometryValue);
     }
   }
 
