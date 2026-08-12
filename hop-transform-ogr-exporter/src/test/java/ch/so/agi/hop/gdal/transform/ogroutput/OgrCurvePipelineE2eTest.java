@@ -26,11 +26,13 @@ import java.nio.file.Path;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import org.apache.hop.core.HopEnvironment;
 import org.apache.hop.pipeline.Pipeline;
 import org.apache.hop.pipeline.PipelineHopMeta;
 import org.apache.hop.pipeline.PipelineMeta;
 import org.apache.hop.pipeline.engines.local.LocalPipelineEngine;
 import org.apache.hop.pipeline.transform.TransformMeta;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.EnabledIfSystemProperty;
 import org.junit.jupiter.api.io.TempDir;
@@ -47,6 +49,11 @@ class OgrCurvePipelineE2eTest {
   private static final String TARGET_LAYER = "roundtrip_curves";
 
   @TempDir Path tempDir;
+
+  @BeforeAll
+  static void initializeHop() throws Exception {
+    HopEnvironment.init();
+  }
 
   @Test
   void shouldPreserveAllSupportedTwoDimensionalSqlMmCurveTypesThroughHopAndGdal()
