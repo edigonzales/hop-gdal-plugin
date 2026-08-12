@@ -9,6 +9,7 @@ import ch.so.agi.gdal.ffm.OgrLayerDefinition;
 import ch.so.agi.gdal.ffm.OgrReaderOptions;
 import ch.so.agi.hop.gdal.ogr.core.OgrBindingsClassLoaderSupport;
 import com.atolcd.hop.core.row.value.ValueMetaGeometry;
+import com.atolcd.hop.gis.geometry.curve.CurveGeometrySupport;
 import java.nio.file.Path;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -30,12 +31,10 @@ import org.apache.hop.pipeline.transform.BaseTransform;
 import org.apache.hop.pipeline.transform.TransformMeta;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.io.ParseException;
-import org.locationtech.jts.io.WKBReader;
 
 public class OgrInput extends BaseTransform<OgrInputMeta, OgrInputData> {
 
   private static final Class<?> PKG = OgrInputMeta.class;
-  private final WKBReader wkbReader = new WKBReader();
 
   public OgrInput(
       TransformMeta transformMeta,
@@ -274,13 +273,13 @@ public class OgrInput extends BaseTransform<OgrInputMeta, OgrInputData> {
     }
   }
 
-  private Geometry toJtsGeometry(OgrGeometry ogrGeometry) throws HopTransformException {
+  Geometry toJtsGeometry(OgrGeometry ogrGeometry) throws HopTransformException {
     if (ogrGeometry == null) {
       return null;
     }
 
     try {
-      Geometry geometry = wkbReader.read(ogrGeometry.ewkb());
+      Geometry geometry = CurveGeometrySupport.readWkb(ogrGeometry.ewkb());
       ogrGeometry.srid().ifPresent(geometry::setSRID);
       return geometry;
     } catch (ParseException e) {
