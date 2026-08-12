@@ -35,3 +35,15 @@ jobs:
       - name: Build and test
         shell: bash
         run: mvn -U -B -ntp test
+
+      - name: Native OGR curve pipeline E2E
+        if: matrix.os == 'ubuntu-latest'
+        shell: bash
+        run: >-
+          mvn -U -B -ntp
+          -pl hop-transform-ogr-exporter -am
+          -Pnative-e2e-linux-x86_64
+          -Dhop.gdal.native.e2e=true
+          -Dtest=OgrCurvePipelineE2eTest
+          -Dsurefire.failIfNoSpecifiedTests=false
+          test
