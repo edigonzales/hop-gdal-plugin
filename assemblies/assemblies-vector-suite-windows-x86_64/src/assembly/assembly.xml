@@ -32,4 +32,12 @@
       </excludes>
     </dependencySet>
   </dependencySets>
+
+  <files>
+    <file>
+      <source>../dependencies.xml</source>
+      <outputDirectory>plugins/transforms/gdal-suite</outputDirectory>
+      <destName>dependencies.xml</destName>
+    </file>
+  </files>
 </assembly>
