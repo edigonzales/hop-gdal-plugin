@@ -25,7 +25,7 @@ import org.apache.hop.pipeline.transform.TransformMeta;
     image = "ch/so/agi/hop/gdal/transform/rasterzonalstats/icons/raster-zonal-stats.svg",
     categoryDescription = "i18n:org.apache.hop.pipeline.transform:BaseTransform.Category.Transform",
     documentationUrl = "/pipeline/transforms/gdal-raster-zonal-stats.html",
-    classLoaderGroup = "hop-gdal-suite",
+    classLoaderGroup = "sogeo-geometry",
     keywords = {"raster", "zonal", "stats", "mean", "gdal"})
 public class GdalRasterZonalStatsMeta
     extends AbstractGdalRasterMeta<GdalRasterZonalStatsTransform, GdalRasterZonalStatsData> {
