@@ -24,7 +24,7 @@ import org.apache.hop.pipeline.transform.TransformMeta;
     image = "ch/so/agi/hop/gdal/transform/rasterizevector/icons/rasterize-vector.svg",
     categoryDescription = "i18n:org.apache.hop.pipeline.transform:BaseTransform.Category.Transform",
     documentationUrl = "/pipeline/transforms/gdal-rasterize-vector.html",
-    classLoaderGroup = "hop-gdal-suite",
+    classLoaderGroup = "sogeo-geometry",
     keywords = {"raster", "gdal", "rasterize", "vector"})
 public class GdalRasterizeVectorMeta
     extends AbstractGdalRasterMeta<GdalRasterizeVectorTransform, GdalRasterizeVectorData> {
