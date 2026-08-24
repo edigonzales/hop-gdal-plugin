@@ -110,20 +110,31 @@ jobs:
         run: |
           $ErrorActionPreference = 'Stop'
           $root = Join-Path $env:SMOKE_DIST 'plugins/transforms/gdal-suite'
+          $lib = Join-Path $root 'lib'
           if (-not (Test-Path $root)) { throw "Missing packaged plugin directory: $root" }
-          if (-not (Test-Path (Join-Path $root 'lib'))) { throw "Missing packaged lib directory: $root/lib" }
+          if (-not (Test-Path $lib)) { throw "Missing packaged lib directory: $lib" }
 
           $reader = @(Get-ChildItem $root -Filter 'hop-transform-ogr-reader-*.jar')
-          $core = @(Get-ChildItem (Join-Path $root 'lib') -Filter 'gdal-ffm-core-*.jar')
-          $natives = @(Get-ChildItem (Join-Path $root 'lib') -Filter 'gdal-ffm-natives-swiss-*-natives-windows-x86_64.jar')
+          $exporter = @(Get-ChildItem $root -Filter 'hop-transform-ogr-exporter-*.jar')
           if ($reader.Count -ne 1) { throw "Expected exactly one OGR reader jar, found $($reader.Count)" }
-          if ($core.Count -ne 1) { throw "Expected exactly one gdal-ffm-core jar, found $($core.Count)" }
-          if ($natives.Count -ne 1) { throw "Expected exactly one Swiss Windows native jar, found $($natives.Count)" }
+          if ($exporter.Count -ne 1) { throw "Expected exactly one OGR exporter jar, found $($exporter.Count)" }
+
+          # The assembly intentionally strips dependency versions in lib via outputFileNameMapping.
+          $expectedLibs = @(
+            'gdal-ffm-core.jar',
+            'gdal-ffm-natives-swiss-natives-windows-x86_64.jar',
+            'hop-ogr-core.jar'
+          )
+          $actualLibs = @(Get-ChildItem $lib -File -Filter '*.jar' | Select-Object -ExpandProperty Name | Sort-Object)
+          $expectedSorted = @($expectedLibs | Sort-Object)
+          if (($actualLibs -join "`n") -ne ($expectedSorted -join "`n")) {
+            throw "Unexpected packaged lib classpath. Expected: $($expectedSorted -join ', '); actual: $($actualLibs -join ', ')"
+          }
 
           Write-Host "ZIP=$env:SMOKE_ZIP"
           Write-Host "reader=$($reader[0].FullName)"
-          Write-Host "core=$($core[0].FullName)"
-          Write-Host "natives=$($natives[0].FullName)"
+          Write-Host "exporter=$($exporter[0].FullName)"
+          foreach ($jar in $actualLibs) { Write-Host "lib=$jar" }
 
       - name: Create OGR smoke dataset
         shell: pwsh
@@ -177,7 +188,9 @@ jobs:
           & "$env:JAVA_HOME/bin/java.exe" --version
           Write-Host "SMOKE_ZIP=$env:SMOKE_ZIP"
           Write-Host "--- extracted tree ---"
-          Get-ChildItem -Recurse $env:SMOKE_DIST | Select-Object FullName, Length
+          Get-ChildItem -Recurse $env:SMOKE_DIST | ForEach-Object {
+            Write-Host "$($_.FullName) [$($_.Length)]"
+          }
           Write-Host "--- fatal JVM logs ---"
           Get-ChildItem -Recurse $env:SMOKE_DIST -Filter 'hs_err_pid*.log' | ForEach-Object {
             Write-Host "### $($_.FullName)"
