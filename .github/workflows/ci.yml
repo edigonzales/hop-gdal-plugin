@@ -24,10 +24,10 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Set up Java 23
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: "23"
@@ -58,15 +58,17 @@ jobs:
       matrix:
         include:
           - { label: temurin-23, distribution: temurin, java-version: '23' }
+          - { label: temurin-24, distribution: temurin, java-version: '24' }
           - { label: oracle-24.0.2, distribution: oracle, java-version: '24.0.2' }
           - { label: temurin-25, distribution: temurin, java-version: '25' }
+          - { label: oracle-25, distribution: oracle, java-version: '25' }
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Set up ${{ matrix.distribution }} JDK ${{ matrix.java-version }}
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: ${{ matrix.distribution }}
           java-version: ${{ matrix.java-version }}
@@ -179,6 +181,72 @@ jobs:
             }
           }
 
+      - name: Record Java, package and CRT identities
+        if: always()
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Continue'
+          $diagnostics = Join-Path $PWD 'build/windows-vector-distribution-smoke-diagnostics'
+          New-Item -ItemType Directory -Force -Path $diagnostics | Out-Null
+          $report = Join-Path $diagnostics 'runtime-and-crt.txt'
+
+          function Write-Line([string]$Text = '') {
+            $Text | Tee-Object -FilePath $report -Append
+          }
+
+          function Write-DllIdentity([string]$Scope, [System.IO.FileInfo]$File) {
+            if ($null -eq $File -or -not $File.Exists) { return }
+            $info = [System.Diagnostics.FileVersionInfo]::GetVersionInfo($File.FullName)
+            $sha = (Get-FileHash -Algorithm SHA256 -LiteralPath $File.FullName).Hash
+            Write-Line "scope=$Scope"
+            Write-Line "path=$($File.FullName)"
+            Write-Line "fileVersion=$($info.FileVersion)"
+            Write-Line "productVersion=$($info.ProductVersion)"
+            Write-Line "length=$($File.Length)"
+            Write-Line "sha256=$sha"
+            Write-Line
+          }
+
+          Write-Line '=== Java runtime ==='
+          Write-Line "JAVA_HOME=$env:JAVA_HOME"
+          Write-Line "matrix=${{ matrix.label }}"
+          (& "$env:JAVA_HOME/bin/java.exe" --version 2>&1) | ForEach-Object { Write-Line $_ }
+          Write-Line
+
+          Write-Line '=== Packaged artifacts ==='
+          if ($env:SMOKE_ZIP -and (Test-Path $env:SMOKE_ZIP)) {
+            Write-Line "zip=$env:SMOKE_ZIP"
+            Write-Line "zipSha256=$((Get-FileHash -Algorithm SHA256 -LiteralPath $env:SMOKE_ZIP).Hash)"
+          }
+          if ($env:SMOKE_DIST -and (Test-Path $env:SMOKE_DIST)) {
+            Get-ChildItem -LiteralPath $env:SMOKE_DIST -Recurse -File -Filter '*.jar' -ErrorAction SilentlyContinue |
+              Sort-Object FullName |
+              ForEach-Object {
+                Write-Line "jar=$($_.FullName)"
+                Write-Line "jarSha256=$((Get-FileHash -Algorithm SHA256 -LiteralPath $_.FullName).Hash)"
+              }
+          }
+          Write-Line
+
+          Write-Line '=== JDK CRT ==='
+          Get-ChildItem -LiteralPath (Join-Path $env:JAVA_HOME 'bin') -File -ErrorAction SilentlyContinue |
+            Where-Object { $_.Name -like 'msvcp140*.dll' -or $_.Name -like 'vcruntime140*.dll' } |
+            Sort-Object Name |
+            ForEach-Object { Write-DllIdentity 'jdk' $_ }
+
+          Write-Line '=== Extracted GDAL CRT ==='
+          if ($env:SMOKE_DIST) {
+            $tmpRoot = Join-Path $env:SMOKE_DIST 'tmp/gdal-ffm'
+            if (Test-Path $tmpRoot) {
+              Get-ChildItem -LiteralPath $tmpRoot -Recurse -File -ErrorAction SilentlyContinue |
+                Where-Object { $_.Name -like 'msvcp140*.dll' -or $_.Name -like 'vcruntime140*.dll' } |
+                Sort-Object FullName -Unique |
+                ForEach-Object { Write-DllIdentity 'gdal-bundle' $_ }
+            } else {
+              Write-Line "No extracted GDAL tree found at $tmpRoot"
+            }
+          }
+
       - name: Dump Windows smoke diagnostics
         if: failure()
         shell: pwsh
@@ -187,14 +255,23 @@ jobs:
           Write-Host "JAVA_HOME=$env:JAVA_HOME"
           & "$env:JAVA_HOME/bin/java.exe" --version
           Write-Host "SMOKE_ZIP=$env:SMOKE_ZIP"
-          Write-Host "--- extracted tree ---"
-          Get-ChildItem -Recurse $env:SMOKE_DIST | ForEach-Object {
-            Write-Host "$($_.FullName) [$($_.Length)]"
-          }
           Write-Host "--- fatal JVM logs ---"
-          Get-ChildItem -Recurse $env:SMOKE_DIST -Filter 'hs_err_pid*.log' | ForEach-Object {
+          Get-ChildItem -Recurse $env:SMOKE_DIST -Filter 'hs_err_pid*.log' -ErrorAction SilentlyContinue | ForEach-Object {
             Write-Host "### $($_.FullName)"
             Get-Content $_.FullName
+          }
+          Write-Host "--- relevant extracted native files ---"
+          $tmpRoot = Join-Path $env:SMOKE_DIST 'tmp/gdal-ffm'
+          if (Test-Path $tmpRoot) {
+            Get-ChildItem -Recurse $tmpRoot -File -ErrorAction SilentlyContinue |
+              Where-Object {
+                $_.Name -eq 'manifest.json' -or
+                $_.Name -eq 'gdal.dll' -or
+                $_.Name -eq 'proj_9.dll' -or
+                $_.Name -like 'msvcp140*.dll' -or
+                $_.Name -like 'vcruntime140*.dll'
+              } |
+              ForEach-Object { Write-Host "$($_.FullName) [$($_.Length)]" }
           }
 
       - name: Upload Windows smoke diagnostics
@@ -205,5 +282,5 @@ jobs:
           if-no-files-found: ignore
           retention-days: 14
           path: |
-            build/windows-vector-distribution-smoke/**
-            assemblies/assemblies-vector-suite-windows-x86_64/target/*.zip
+            build/windows-vector-distribution-smoke/hs_err_pid*.log
+            build/windows-vector-distribution-smoke-diagnostics/**
