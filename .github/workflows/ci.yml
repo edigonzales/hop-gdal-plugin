@@ -5,6 +5,7 @@ on:
   push:
     branches:
       - main
+      - "ci/**"
 
 permissions:
   contents: read
@@ -47,3 +48,149 @@ jobs:
           -Dtest=OgrCurvePipelineE2eTest
           -Dsurefire.failIfNoSpecifiedTests=false
           test
+
+  windows-distribution-smoke:
+    name: Windows packaged vector smoke (${{ matrix.label }})
+    runs-on: windows-2025
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { label: temurin-23, distribution: temurin, java-version: '23' }
+          - { label: oracle-24.0.2, distribution: oracle, java-version: '24.0.2' }
+          - { label: temurin-25, distribution: temurin, java-version: '25' }
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up ${{ matrix.distribution }} JDK ${{ matrix.java-version }}
+        uses: actions/setup-java@v4
+        with:
+          distribution: ${{ matrix.distribution }}
+          java-version: ${{ matrix.java-version }}
+          cache: maven
+
+      - name: Verify selected Java runtime
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "JAVA_HOME=$JAVA_HOME"
+          command -v java
+          java --version
+          "$JAVA_HOME/bin/java" --version
+
+      - name: Build Windows vector distribution ZIP
+        shell: bash
+        run: >-
+          mvn -U -B -ntp
+          -DskipTests
+          -pl assemblies/assemblies-vector-suite-windows-x86_64
+          -am
+          package
+
+      - name: Extract packaged Windows vector distribution
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $zips = @(Get-ChildItem 'assemblies/assemblies-vector-suite-windows-x86_64/target/*.zip')
+          if ($zips.Count -ne 1) {
+            throw "Expected exactly one Windows vector distribution ZIP, found $($zips.Count): $($zips.FullName -join ', ')"
+          }
+          $target = Join-Path $PWD 'build/windows-vector-distribution-smoke'
+          if (Test-Path $target) { Remove-Item -Recurse -Force $target }
+          New-Item -ItemType Directory -Force -Path $target | Out-Null
+          Expand-Archive -LiteralPath $zips[0].FullName -DestinationPath $target -Force
+          "SMOKE_DIST=$target" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          "SMOKE_ZIP=$($zips[0].FullName)" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
+      - name: Validate exact packaged classpath
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $root = Join-Path $env:SMOKE_DIST 'plugins/transforms/gdal-suite'
+          if (-not (Test-Path $root)) { throw "Missing packaged plugin directory: $root" }
+          if (-not (Test-Path (Join-Path $root 'lib'))) { throw "Missing packaged lib directory: $root/lib" }
+
+          $reader = @(Get-ChildItem $root -Filter 'hop-transform-ogr-reader-*.jar')
+          $core = @(Get-ChildItem (Join-Path $root 'lib') -Filter 'gdal-ffm-core-*.jar')
+          $natives = @(Get-ChildItem (Join-Path $root 'lib') -Filter 'gdal-ffm-natives-swiss-*-natives-windows-x86_64.jar')
+          if ($reader.Count -ne 1) { throw "Expected exactly one OGR reader jar, found $($reader.Count)" }
+          if ($core.Count -ne 1) { throw "Expected exactly one gdal-ffm-core jar, found $($core.Count)" }
+          if ($natives.Count -ne 1) { throw "Expected exactly one Swiss Windows native jar, found $($natives.Count)" }
+
+          Write-Host "ZIP=$env:SMOKE_ZIP"
+          Write-Host "reader=$($reader[0].FullName)"
+          Write-Host "core=$($core[0].FullName)"
+          Write-Host "natives=$($natives[0].FullName)"
+
+      - name: Create OGR smoke dataset
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $sample = Join-Path $env:SMOKE_DIST 'smoke.geojson'
+          @'
+          {
+            "type": "FeatureCollection",
+            "features": [
+              {
+                "type": "Feature",
+                "properties": { "name": "smoke", "value": 42 },
+                "geometry": { "type": "Point", "coordinates": [7.4386, 46.9511] }
+              }
+            ]
+          }
+          '@ | Set-Content -Encoding utf8 $sample
+          "SMOKE_DATASET=$sample" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
+      - name: Run OGR smoke from extracted distribution twice
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $pluginRoot = Join-Path $env:SMOKE_DIST 'plugins/transforms/gdal-suite'
+          $classpath = "$pluginRoot/*;$pluginRoot/lib/*"
+          $tmp = Join-Path $env:SMOKE_DIST 'tmp'
+          New-Item -ItemType Directory -Force -Path $tmp | Out-Null
+          $source = Join-Path $PWD 'tools/smoke/WindowsVectorDistributionSmoke.java'
+
+          for ($i = 1; $i -le 2; $i++) {
+            Write-Host "=== packaged OGR smoke run $i ==="
+            & "$env:JAVA_HOME/bin/java.exe" `
+              --enable-native-access=ALL-UNNAMED `
+              "-Djava.io.tmpdir=$tmp" `
+              "-XX:ErrorFile=$env:SMOKE_DIST/hs_err_pid%p.log" `
+              -cp $classpath `
+              $source `
+              $env:SMOKE_DATASET
+            if ($LASTEXITCODE -ne 0) {
+              throw "Packaged OGR smoke run $i failed with exit code $LASTEXITCODE"
+            }
+          }
+
+      - name: Dump Windows smoke diagnostics
+        if: failure()
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Continue'
+          Write-Host "JAVA_HOME=$env:JAVA_HOME"
+          & "$env:JAVA_HOME/bin/java.exe" --version
+          Write-Host "SMOKE_ZIP=$env:SMOKE_ZIP"
+          Write-Host "--- extracted tree ---"
+          Get-ChildItem -Recurse $env:SMOKE_DIST | Select-Object FullName, Length
+          Write-Host "--- fatal JVM logs ---"
+          Get-ChildItem -Recurse $env:SMOKE_DIST -Filter 'hs_err_pid*.log' | ForEach-Object {
+            Write-Host "### $($_.FullName)"
+            Get-Content $_.FullName
+          }
+
+      - name: Upload Windows smoke diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: hop-windows-distribution-smoke-${{ matrix.label }}
+          if-no-files-found: ignore
+          retention-days: 14
+          path: |
+            build/windows-vector-distribution-smoke/**
+            assemblies/assemblies-vector-suite-windows-x86_64/target/*.zip
